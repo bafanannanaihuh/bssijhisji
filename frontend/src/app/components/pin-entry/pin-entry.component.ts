@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService, UserProfile } from '../../services/api.service';
@@ -51,7 +51,7 @@ import { ApiService, UserProfile } from '../../services/api.service';
       </div>
 
       <!-- Numeric Keypad matching photo (clean floating numbers & green/red backspace) -->
-      <div class="keypad-wrapper" [class.disabled-keypad]="isWrongPinDancing">
+      <div class="keypad-wrapper">
         <div class="keypad-row">
           <button class="num-key" (click)="pressKey('1')">1</button>
           <button class="num-key" (click)="pressKey('2')">2</button>
@@ -487,14 +487,15 @@ import { ApiService, UserProfile } from '../../services/api.service';
 export class PinEntryComponent implements OnInit {
   private api = inject(ApiService);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
 
-  pin: string = '';
-  isNavigating: boolean = false;
-  isWrongPinDancing: boolean = false;
-
-  activeAdminPhone: string = '0798765485';
-  showSwitcher: boolean = false;
+  pin = '';
+  isWrongPinDancing = false;
+  isNavigating = false;
+  showSwitcher = false;
+  activeAdminPhone = '0798765485';
   availableProfiles: any[] = [];
+  private wrongDanceTimer: any = null;
 
   user: UserProfile = {
     name: 'Regarn Omondi',
@@ -508,35 +509,37 @@ export class PinEntryComponent implements OnInit {
   };
 
   ngOnInit(): void {
-    this.pin = '';
-    this.isNavigating = false;
-    this.isWrongPinDancing = false;
-
     this.activeAdminPhone = this.api.getActiveAdminPhone();
 
     this.api.user$.subscribe(u => {
       if (u) {
         this.user = u;
+        this.cdr.detectChanges();
       }
     });
 
     // Fetch initial user wallet for active admin
     this.api.getUser(this.activeAdminPhone).subscribe(res => {
-      if (res && res.user) this.user = res.user;
+      if (res && res.user) {
+        this.user = res.user;
+        this.cdr.detectChanges();
+      }
     });
 
     // Preload available admin profiles for switcher
     this.api.getPublicAdminProfiles().subscribe(profiles => {
       this.availableProfiles = profiles;
+      this.cdr.detectChanges();
     });
   }
 
   toggleSwitcher(): void {
-    if (this.isWrongPinDancing || this.isNavigating) return;
+    if (this.isNavigating) return;
     this.showSwitcher = !this.showSwitcher;
     if (this.showSwitcher) {
       this.api.getPublicAdminProfiles().subscribe(profiles => {
         this.availableProfiles = profiles;
+        this.cdr.detectChanges();
       });
     }
   }
@@ -547,18 +550,35 @@ export class PinEntryComponent implements OnInit {
     this.showSwitcher = false;
     this.pin = '';
     this.api.getUser(p.phone).subscribe(res => {
-      if (res && res.user) this.user = res.user;
+      if (res && res.user) {
+        this.user = res.user;
+        this.cdr.detectChanges();
+      }
     });
   }
 
   pressKey(digit: string): void {
-    if (this.isWrongPinDancing || this.isNavigating || this.pin.length >= 4) {
+    if (this.isNavigating) {
+      return;
+    }
+
+    // If wrong PIN was dancing, immediately cancel the dance, clear PIN, and accept the new keypress
+    if (this.isWrongPinDancing) {
+      if (this.wrongDanceTimer) {
+        clearTimeout(this.wrongDanceTimer);
+        this.wrongDanceTimer = null;
+      }
+      this.isWrongPinDancing = false;
+      this.pin = '';
+    }
+
+    if (this.pin.length >= 4) {
       return;
     }
     this.pin += digit;
+    this.cdr.detectChanges();
 
     if (this.pin.length === 4) {
-      // Immediate verification without any verifying option or spinner
       this.api.verifyAppPin(this.pin, this.activeAdminPhone).subscribe({
         next: (res) => {
           if (res && res.success) {
@@ -571,11 +591,11 @@ export class PinEntryComponent implements OnInit {
               sessionStorage.setItem('mpesa_pin_authenticated', 'true');
             }
             this.isNavigating = true;
+            this.cdr.detectChanges();
             setTimeout(() => {
               this.router.navigate(['/home']);
             }, 120);
           } else {
-            // Wrong PIN: boxes dance in red and clear
             this.triggerWrongPinDance();
           }
         },
@@ -588,16 +608,36 @@ export class PinEntryComponent implements OnInit {
 
   triggerWrongPinDance(): void {
     this.isWrongPinDancing = true;
-    setTimeout(() => {
+    this.isNavigating = false;
+    this.cdr.detectChanges();
+
+    if (this.wrongDanceTimer) {
+      clearTimeout(this.wrongDanceTimer);
+    }
+
+    this.wrongDanceTimer = setTimeout(() => {
       this.pin = '';
       this.isWrongPinDancing = false;
-    }, 650);
+      this.isNavigating = false;
+      this.cdr.detectChanges();
+    }, 550);
   }
 
   deleteKey(): void {
-    if (this.isWrongPinDancing || this.isNavigating) return;
+    if (this.isNavigating) return;
+    if (this.isWrongPinDancing) {
+      if (this.wrongDanceTimer) {
+        clearTimeout(this.wrongDanceTimer);
+        this.wrongDanceTimer = null;
+      }
+      this.isWrongPinDancing = false;
+      this.pin = '';
+      this.cdr.detectChanges();
+      return;
+    }
     if (this.pin.length > 0) {
       this.pin = this.pin.slice(0, -1);
+      this.cdr.detectChanges();
     }
   }
 }

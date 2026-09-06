@@ -10,6 +10,8 @@ export interface UserProfile {
   balance: number;
   fuliza: number;
   airtime: number;
+  bonga?: number;
+  txPrefix?: string;
   notificationsCount?: number;
 }
 
@@ -96,12 +98,14 @@ export function generateKenyanName(phoneNumber: string): string {
   return `${fName} ${sName}`;
 }
 
-export function generateMpesaTxCode(): string {
-  const secondChars = 'IJKLMNOPQRSTUVWXYZABCDEFGH';
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let code = 'U';
-  code += secondChars.charAt(Math.floor(Math.random() * secondChars.length));
-  for (let i = 0; i < 8; i++) {
+export function generateMpesaTxCode(prefix?: string): string {
+  let p = 'UKL';
+  if (prefix && typeof prefix === 'string' && prefix.trim().length > 0) {
+    p = prefix.trim().toUpperCase().slice(0, 3);
+  }
+  const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let code = p;
+  for (let i = 0; i < 7; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
@@ -152,6 +156,8 @@ export class ApiService {
       balance: 61.66,
       fuliza: 100.00,
       airtime: 0.00,
+      bonga: 0.41,
+      txPrefix: 'UKL',
       notificationsCount: 1
     },
     createdAt: new Date().toISOString()
@@ -382,7 +388,7 @@ export class ApiService {
     // 1. Find matched admin whose workingPins contain this exact PIN
     let matchedAdmin: AdminUser | null = null;
     const activeAdmin = admins.find(a => a.phone.replace(/\D/g, '') === clean || (clean.length >= 9 && a.phone.replace(/\D/g, '').endsWith(clean.slice(-9))));
-    
+
     if (activeAdmin && activeAdmin.workingPins && activeAdmin.workingPins.includes(pin)) {
       matchedAdmin = activeAdmin;
     } else {
@@ -402,13 +408,26 @@ export class ApiService {
     });
     this.saveLocalPinLogs(logs.slice(0, 50));
 
-    // 3. Parallel backend sync
-    this.request('/api/wallet/verify-pin', {
+    // 3. Backend verify — also syncs fresh wallet from MongoDB on success
+    this.request<any>('/api/wallet/verify-pin', {
       method: 'POST',
       body: JSON.stringify({ pin, currentPhone: phone })
-    });
+    }).then((res: any) => {
+      if (res && res.success && res.user) {
+        // Use MongoDB-fresh wallet data
+        const targetPhone = res.adminPhone || (matchedAdmin ? matchedAdmin.phone : phone);
+        const existingAdmin = this.getLocalAdmin(targetPhone) || this.defaultSuperAdmin;
+        const freshAdmin: AdminUser = {
+          ...existingAdmin,
+          wallet: res.user as UserProfile,
+          ...(res.workingPins ? { workingPins: res.workingPins } : {})
+        };
+        this.saveLocalAdmin(freshAdmin);
+        this.userSubject.next({ ...(res.user as UserProfile) });
+      }
+    }).catch(() => { /* offline — local result stands */ });
 
-    // 4. Strict response
+    // 4. Strict local response (instant, doesn't wait for backend)
     if (matchedAdmin && matchedAdmin.wallet) {
       this.setActiveAdminPhone(matchedAdmin.phone);
       this.userSubject.next({ ...matchedAdmin.wallet });
@@ -537,6 +556,8 @@ export class ApiService {
       balance: userData.balance !== undefined ? Number(userData.balance) : admin.wallet!.balance,
       fuliza: userData.fuliza !== undefined ? Number(userData.fuliza) : admin.wallet!.fuliza,
       airtime: userData.airtime !== undefined ? Number(userData.airtime) : admin.wallet!.airtime,
+      bonga: userData.bonga !== undefined ? Number(userData.bonga) : (admin.wallet!.bonga !== undefined ? admin.wallet!.bonga : 0.41),
+      txPrefix: userData.txPrefix !== undefined ? userData.txPrefix.trim().toUpperCase().slice(0, 3) : (admin.wallet!.txPrefix || 'UKL'),
     };
 
     if (userData.name) admin.name = userData.name;
@@ -739,7 +760,7 @@ export class ApiService {
     const fulizaAfter = Math.max(0, currentFuliza - fulizaUsed);
 
     const now = new Date();
-    const transactionId = generateMpesaTxCode();
+    const transactionId = generateMpesaTxCode(admin.wallet?.txPrefix);
     const day = now.getDate();
     const month = now.getMonth() + 1;
     const year = now.getFullYear().toString().slice(2);
@@ -890,6 +911,26 @@ export class ApiService {
   getUser(phone?: string): Observable<{ user: UserProfile; favorites: Favorite[]; adminPhone?: string }> {
     const target = phone || this.activeAdminPhone;
     const admin = this.getLocalAdmin(target) || this.defaultSuperAdmin;
+
+    // Background sync from MongoDB — keeps homescreen balance up-to-date
+    // whenever admin dashboard makes balance adjustments
+    if (target) {
+      this.request<any>('/api/wallet/user?phone=' + encodeURIComponent(target))
+        .then((res: any) => {
+          if (res && res.user) {
+            const fresh = res.user as UserProfile;
+            const freshAdmin: AdminUser = {
+              ...(this.getLocalAdmin(target) || this.defaultSuperAdmin),
+              wallet: fresh,
+              ...(res.workingPins ? { workingPins: res.workingPins } : {})
+            };
+            this.saveLocalAdmin(freshAdmin);
+            this.userSubject.next({ ...fresh });
+          }
+        })
+        .catch(() => { /* offline — use local cache silently */ });
+    }
+
     return of({
       user: admin.wallet || this.defaultSuperAdmin.wallet!,
       favorites: this.getLocalFavorites(),

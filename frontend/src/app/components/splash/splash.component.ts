@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
@@ -8,14 +8,14 @@ import { Router } from '@angular/router';
   imports: [CommonModule],
   template: `
     <div class="splash-screen" (click)="advanceStage()">
-      <!-- Stage 1: Official App Squircle Icon from User Screenshot -->
+      <!-- Stage 1: Official App Squircle Icon -->
       <div class="stage-container fade-in" *ngIf="stage === 1">
         <div class="app-icon-wrapper">
           <img src="/icons/app-icon.png" alt="My OneApp" class="splash-app-icon" />
         </div>
       </div>
 
-      <!-- Stage 2: Horizontal Safaricom | m-pesa Loading Screen from User Screenshot -->
+      <!-- Stage 2: Horizontal Safaricom | m-pesa Logo -->
       <div class="stage-container fade-in" *ngIf="stage === 2">
         <div class="horizontal-logo-wrapper">
           <img src="/icons/stage2-logo-transparent.png" alt="Safaricom | m-pesa" class="stage2-logo-img" />
@@ -42,7 +42,6 @@ import { Router } from '@angular/router';
       cursor: pointer;
       user-select: none;
     }
-
     .stage-container {
       display: flex;
       align-items: center;
@@ -50,8 +49,6 @@ import { Router } from '@angular/router';
       flex: 1;
       width: 100%;
     }
-
-    /* Stage 1: App Squircle Icon */
     .app-icon-wrapper {
       width: 145px;
       height: 145px;
@@ -60,7 +57,6 @@ import { Router } from '@angular/router';
       justify-content: center;
       animation: zoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
-
     .splash-app-icon {
       width: 100%;
       height: 100%;
@@ -68,8 +64,6 @@ import { Router } from '@angular/router';
       border-radius: 34px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
     }
-
-    /* Stage 2: Horizontal Logo from User Screenshot */
     .horizontal-logo-wrapper {
       display: flex;
       align-items: center;
@@ -77,22 +71,18 @@ import { Router } from '@angular/router';
       padding: 0 24px;
       animation: fadeIn 0.4s ease;
     }
-
     .stage2-logo-img {
       width: 240px;
       max-width: 80vw;
       height: auto;
       object-fit: contain;
     }
-
-    /* Bottom Home Indicator */
     .bottom-bar {
       display: flex;
       justify-content: center;
       padding-bottom: 12px;
       flex-shrink: 0;
     }
-
     .home-indicator {
       width: 110px;
       height: 4px;
@@ -100,12 +90,10 @@ import { Router } from '@angular/router';
       border-radius: 4px;
       opacity: 0.65;
     }
-
     @keyframes zoomIn {
       from { transform: scale(0.85); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
-
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -114,40 +102,60 @@ import { Router } from '@angular/router';
 })
 export class SplashComponent implements OnInit, OnDestroy {
   private router = inject(Router);
-  stage: number = 1;
-  private timer1: any;
-  private timer2: any;
+  private cdr = inject(ChangeDetectorRef);
+  stage = 1;
+  private timer1: any = null;
+  private timer2: any = null;
+  private gone = false;
 
   ngOnInit(): void {
-    // Stage 1 (Squircle App Icon) -> 1.3s -> Stage 2 (Horizontal Logo) -> 1.3s -> PIN Entry
-    this.timer1 = setTimeout(() => {
-      this.stage = 2;
-      this.timer2 = setTimeout(() => {
-        this.goToPin();
-      }, 1300);
-    }, 1300);
+    this.gone = false;
+    this.stage = 1;
+    this.startTimers();
   }
 
   ngOnDestroy(): void {
-    if (this.timer1) clearTimeout(this.timer1);
-    if (this.timer2) clearTimeout(this.timer2);
+    this.gone = true;
+    this.clearTimers();
+  }
+
+  private clearTimers(): void {
+    if (this.timer1) { clearTimeout(this.timer1); this.timer1 = null; }
+    if (this.timer2) { clearTimeout(this.timer2); this.timer2 = null; }
+  }
+
+  private startTimers(): void {
+    this.clearTimers();
+    this.timer1 = setTimeout(() => {
+      if (this.gone) return;
+      this.stage = 2;
+      this.cdr.detectChanges();
+      this.timer2 = setTimeout(() => {
+        if (this.gone) return;
+        this.goToPin();
+      }, 1500);
+    }, 1500);
   }
 
   advanceStage(): void {
+    if (this.gone) return;
+    this.clearTimers();
     if (this.stage === 1) {
-      if (this.timer1) clearTimeout(this.timer1);
       this.stage = 2;
+      this.cdr.detectChanges();
       this.timer2 = setTimeout(() => {
+        if (this.gone) return;
         this.goToPin();
-      }, 1300);
+      }, 1500);
     } else {
       this.goToPin();
     }
   }
 
   goToPin(): void {
-    if (this.timer1) clearTimeout(this.timer1);
-    if (this.timer2) clearTimeout(this.timer2);
+    if (this.gone) return;
+    this.gone = true;
+    this.clearTimers();
     this.router.navigate(['/pin']);
   }
 }

@@ -140,12 +140,14 @@ function saveDb(data) {
   }
 }
 
-function generateTransactionId() {
-  const secondChars = 'IJKLMNOPQRSTUVWXYZABCDEFGH';
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let result = 'U';
-  result += secondChars.charAt(Math.floor(Math.random() * secondChars.length));
-  for (let i = 0; i < 8; i++) {
+function generateTransactionId(prefix) {
+  let p = 'UKL';
+  if (prefix && typeof prefix === 'string' && prefix.trim().length > 0) {
+    p = prefix.trim().toUpperCase().slice(0, 3);
+  }
+  const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let result = p;
+  for (let i = 0; i < 7; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;

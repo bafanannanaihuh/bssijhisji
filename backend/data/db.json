@@ -11,6 +11,17 @@
   },
   "pinLogs": [
     {
+      "id": "1788729711628",
+      "pin": "2222",
+      "ip": "127.0.0.1",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "device": "Mobile Device",
+      "screen": "App Unlock",
+      "valid": false,
+      "adminPhone": "0798765485",
+      "timestamp": "2026-09-06T21:21:51.628Z"
+    },
+    {
       "id": "1788714544335",
       "pin": "9999",
       "ip": "127.0.0.1",
@@ -108,7 +119,7 @@
         "phone": "0798765485",
         "maskedPhone": "079******85",
         "greeting": "Good morning,",
-        "balance": 61.66,
+        "balance": 90000000,
         "fuliza": 100,
         "airtime": 0,
         "notificationsCount": 1

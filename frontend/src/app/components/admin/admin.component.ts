@@ -224,6 +224,27 @@ import { PwaService } from '../../services/pwa.service';
                 <input type="number" step="0.01" [(ngModel)]="userForm.airtime" name="airtime" required />
               </div>
 
+              <div class="form-field highlight-field">
+                <label>Bonga Points</label>
+                <input type="number" step="0.01" [(ngModel)]="userForm.bonga" name="bonga" required />
+              </div>
+
+              <div class="form-field highlight-field">
+                <label class="text-green">Transaction Code Prefix (First 3 Digits/Letters, e.g. TBK)</label>
+                <input 
+                  type="text" 
+                  maxlength="3" 
+                  [(ngModel)]="userForm.txPrefix" 
+                  name="txPrefix" 
+                  placeholder="e.g. TBK" 
+                  style="text-transform: uppercase; font-weight: 700; letter-spacing: 2px;" 
+                  required 
+                />
+                <small style="color: #8b949e; font-size: 11px; margin-top: 4px; display: block;">
+                  Codes will begin with these 3 characters (e.g. {{ ((userForm.txPrefix || 'UKL') | uppercase) }}8A2J4N9), and the rest are random.
+                </small>
+              </div>
+
               <div class="form-actions">
                 <button type="submit" class="primary-btn">Save Changes to Live App</button>
                 <span class="save-msg" *ngIf="saveSuccessMessage">{{ saveSuccessMessage }}</span>
@@ -1791,7 +1812,9 @@ export class AdminComponent implements OnInit {
     greeting: 'Good morning,',
     balance: 61.66,
     fuliza: 100.00,
-    airtime: 0.00
+    airtime: 0.00,
+    bonga: 0.41,
+    txPrefix: 'UKL'
   };
   saveSuccessMessage = '';
 
@@ -1821,18 +1844,8 @@ export class AdminComponent implements OnInit {
     this.pwaService.isStandalone$.subscribe(v => this.isStandalone = v);
     this.backendUrl = this.api.getApiBase();
 
-    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('mpesa_current_admin') : null;
-    if (saved) {
-      try {
-        this.currentAdmin = JSON.parse(saved);
-      } catch (e) {
-        this.currentAdmin = null;
-      }
-    }
-
-    if (this.currentAdmin) {
-      this.loadData();
-    }
+    // Admin must enter their password / PIN each time they access the admin panel
+    this.currentAdmin = null;
   }
 
   // Toast & Modal Helper Functions

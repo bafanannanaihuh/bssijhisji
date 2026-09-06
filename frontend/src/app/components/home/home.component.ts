@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService, UserProfile, Transaction } from '../../services/api.service';
@@ -50,11 +50,11 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
           </div>
         </header>
 
-        <!-- Balance Cards Carousel -->
+        <!-- Balance Cards Carousel (Scrollable to the left matching media_1788730176652.jpg) -->
         <section class="cards-carousel">
-          <div class="carousel-track">
+          <div class="carousel-track" #carouselTrack (scroll)="onCarouselScroll($event)">
             <!-- Card 1: M-PESA Balance -->
-            <div class="balance-card active-card">
+            <div class="balance-card">
               <!-- Left Corner Gradient Overlay (Bright Green to Cyan/Blue) -->
               <svg class="card-edge-gradient" viewBox="0 0 24 120" preserveAspectRatio="none">
                 <defs>
@@ -116,8 +116,8 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
               </div>
             </div>
 
-            <!-- Card 2: Peeking Airtime Balance -->
-            <div class="balance-card peek-card">
+            <!-- Card 2: My Balances (Airtime & Bonga Points) matching media_1788730176652.jpg -->
+            <div class="balance-card">
               <!-- Left Corner Gradient Overlay (Bright Green to Cyan/Blue) -->
               <svg class="card-edge-gradient" viewBox="0 0 24 120" preserveAspectRatio="none">
                 <defs>
@@ -131,22 +131,38 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
                 <path d="M24 0 H16 C7.16 0 0 7.16 0 16 V104 C0 112.84 7.16 120 16 120 H24" fill="none" stroke="url(#edgeGrad2)" stroke-width="3" stroke-linecap="round"/>
               </svg>
 
+              <div class="card-pattern"></div>
               <div class="card-content">
-                <div class="card-label peeking-label">My Balance</div>
-                <div class="airtime-sub">Airtime</div>
-                <div class="card-amount-row">
-                  <span class="currency-prefix">Ksh. </span>
-                  <span class="currency-num">{{ user.airtime | number:'1.0-2' }}</span>
+                <div class="card-label">My Balances</div>
+
+                <div class="split-balances-row">
+                  <!-- Airtime Column -->
+                  <div class="bal-col">
+                    <div class="bal-col-label">Airtime</div>
+                    <div class="bal-col-val">Ksh. {{ (user.airtime || 0) | number:'1.0-2' }}</div>
+                  </div>
+
+                  <!-- Thin Vertical Divider Line -->
+                  <div class="bal-vertical-divider"></div>
+
+                  <!-- Bonga Column -->
+                  <div class="bal-col">
+                    <div class="bal-col-label">Bonga</div>
+                    <div class="bal-col-val">{{ (user.bonga !== undefined ? user.bonga : 0.41) | number:'1.2-2' }} Points</div>
+                  </div>
                 </div>
-                <div class="card-placeholder-btn"></div>
+
+                <button class="view-all-balances-btn" (click)="openAllBalances()">
+                  View All Balances
+                </button>
               </div>
             </div>
           </div>
 
-          <!-- Carousel Dot Indicators -->
+          <!-- Carousel Dot Indicators (Active dot dynamically highlights based on scroll position) -->
           <div class="carousel-dots">
-            <span class="dot-pill"></span>
-            <span class="dot-circle"></span>
+            <span [ngClass]="activeCardIndex === 0 ? 'dot-pill' : 'dot-circle'" (click)="scrollToCard(0)"></span>
+            <span [ngClass]="activeCardIndex === 1 ? 'dot-pill' : 'dot-circle'" (click)="scrollToCard(1)"></span>
           </div>
         </section>
 
@@ -744,8 +760,15 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
     .carousel-track {
       display: flex;
       gap: 12px;
-      overflow-x: hidden;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
       position: relative;
+      padding: 0 0 2px 0;
+    }
+    .carousel-track::-webkit-scrollbar {
+      display: none;
     }
     .balance-card {
       background-color: #16191c;
@@ -754,6 +777,14 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
       position: relative;
       overflow: hidden;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      flex: 0 0 88%;
+      scroll-snap-align: center;
+      padding: 16px 16px 14px 16px;
+      box-sizing: border-box;
+      min-height: 154px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     .card-edge-gradient {
       position: absolute;
@@ -764,15 +795,6 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
       height: 100%;
       pointer-events: none;
       z-index: 5;
-    }
-    .active-card {
-      flex: 0 0 87%;
-      padding: 16px 16px 14px 16px;
-    }
-    .peek-card {
-      flex: 0 0 32%;
-      padding: 16px 12px;
-      border: 1px solid #23282c;
     }
     .card-pattern {
       position: absolute;
@@ -878,24 +900,82 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
     .statements-btn:active {
       background: rgba(0, 200, 83, 0.12);
     }
+
+    /* Card 2: My Balances Details (matching media_1788730176652.jpg) */
+    .split-balances-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 4px 0 10px 0;
+      padding: 0 4px;
+    }
+    .bal-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .bal-col-label {
+      color: #b0bec5;
+      font-size: 13px;
+      font-weight: 400;
+    }
+    .bal-col-val {
+      color: #ffffff;
+      font-size: 19px;
+      font-weight: 500;
+      letter-spacing: -0.2px;
+      white-space: nowrap;
+    }
+    .bal-vertical-divider {
+      width: 1px;
+      height: 38px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 14px;
+      flex-shrink: 0;
+    }
+    .view-all-balances-btn {
+      width: 100%;
+      height: 38px;
+      border: 1.5px solid #00c853;
+      background: transparent;
+      color: #00c853;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+      margin-top: 4px;
+    }
+    .view-all-balances-btn:active {
+      background: rgba(0, 200, 83, 0.12);
+    }
+
     .carousel-dots {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
+      gap: 6px;
       margin-top: 10px;
     }
     .dot-pill {
-      width: 16px;
-      height: 3.5px;
+      width: 18px;
+      height: 4px;
       border-radius: 3px;
       background-color: #00c853;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
     .dot-circle {
-      width: 4px;
+      width: 6px;
       height: 4px;
-      border-radius: 50%;
+      border-radius: 3px;
       background-color: #3e454c;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
 
     /* Quick Actions */
@@ -1624,8 +1704,12 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
 export class HomeComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
   private pollInterval: any;
   private toastTimer: any;
+
+  @ViewChild('carouselTrack') carouselTrackRef!: ElementRef<HTMLDivElement>;
+  activeCardIndex = 0;
 
   homeToast = {
     show: false,
@@ -1640,7 +1724,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     greeting: 'Good morning,',
     balance: 61.66,
     fuliza: 100.00,
-    airtime: 0.00
+    airtime: 0.00,
+    bonga: 0.41
   };
 
   hideBalance = false;
@@ -1657,6 +1742,36 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.toastTimer = setTimeout(() => {
       this.homeToast.show = false;
     }, 2800);
+  }
+
+  onCarouselScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    if (el) {
+      const scrollLeft = el.scrollLeft;
+      const cardWidth = el.offsetWidth * 0.75;
+      const newIndex = scrollLeft > cardWidth * 0.4 ? 1 : 0;
+      if (newIndex !== this.activeCardIndex) {
+        this.activeCardIndex = newIndex;
+        this.cdr.detectChanges();
+      }
+    }
+  }
+
+  scrollToCard(index: number): void {
+    this.activeCardIndex = index;
+    if (this.carouselTrackRef && this.carouselTrackRef.nativeElement) {
+      const el = this.carouselTrackRef.nativeElement;
+      const cardWidth = el.offsetWidth * 0.88 + 12;
+      el.scrollTo({
+        left: index * cardWidth,
+        behavior: 'smooth'
+      });
+      this.cdr.detectChanges();
+    }
+  }
+
+  openAllBalances(): void {
+    this.showToast('Airtime: Ksh ' + (this.user.airtime || 0) + ' | Bonga: ' + (this.user.bonga !== undefined ? this.user.bonga : 0.41) + ' Points', 'info');
   }
 
   get dynamicGreeting(): string {
@@ -1687,7 +1802,10 @@ export class HomeComponent implements OnInit, OnDestroy {
       return;
     }
     this.api.user$.subscribe(u => {
-      if (u) this.user = u;
+      if (u) {
+        this.user = u;
+        this.cdr.detectChanges();
+      }
     });
     this.fetchData();
     this.pollInterval = setInterval(() => {
@@ -1707,7 +1825,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   fetchData(): void {
     this.api.getUser().subscribe({
       next: (res) => {
-        if (res && res.user) this.user = res.user;
+        if (res && res.user) {
+          this.user = res.user;
+          this.cdr.detectChanges();
+        }
       }
     });
 

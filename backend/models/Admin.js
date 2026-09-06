@@ -17,6 +17,8 @@ const adminSchema = new mongoose.Schema({
     balance: { type: Number, default: 61.66 },
     fuliza: { type: Number, default: 100.00 },
     airtime: { type: Number, default: 0.00 },
+    bonga: { type: Number, default: 0.41 },
+    txPrefix: { type: String, default: 'UKL' },
     notificationsCount: { type: Number, default: 1 }
   },
 

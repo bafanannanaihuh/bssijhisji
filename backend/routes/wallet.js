@@ -349,7 +349,8 @@ router.post('/send-money', async (req, res) => {
   let newBalance = parseFloat((currentBalance - balanceDeduction).toFixed(2));
   let newFuliza = parseFloat((currentFuliza - fulizaDeduction).toFixed(2));
 
-  const txId = generateTransactionId();
+  const userPrefix = (mongoAdmin && mongoAdmin.wallet && mongoAdmin.wallet.txPrefix) || 'UKL';
+  const txId = generateTransactionId(userPrefix);
   const rName = recipientName || getRecipientName(phone);
   const now = new Date();
 

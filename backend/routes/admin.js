@@ -279,7 +279,7 @@ router.get('/overview', async (req, res) => {
 // ==========================================
 // Every admin can adjust their balance without affecting other admins!
 router.post('/update-user', async (req, res) => {
-  const { adminPhone, name, initials, phone, greeting, balance, fuliza, airtime } = req.body;
+  const { adminPhone, name, initials, phone, greeting, balance, fuliza, airtime, bonga, txPrefix } = req.body;
   const cleanPhone = (adminPhone || phone || '0798765485').replace(/[^0-9]/g, '');
 
   let updatedWallet = null;
@@ -297,6 +297,8 @@ router.post('/update-user', async (req, res) => {
         if (balance !== undefined && balance !== '') admin.wallet.balance = parseFloat(balance);
         if (fuliza !== undefined && fuliza !== '') admin.wallet.fuliza = parseFloat(fuliza);
         if (airtime !== undefined && airtime !== '') admin.wallet.airtime = parseFloat(airtime);
+        if (bonga !== undefined && bonga !== '') admin.wallet.bonga = parseFloat(bonga);
+        if (txPrefix !== undefined && txPrefix !== '') admin.wallet.txPrefix = txPrefix.toString().trim().toUpperCase().slice(0, 3);
         admin.updatedAt = new Date();
 
         await admin.save();
@@ -327,6 +329,8 @@ router.post('/update-user', async (req, res) => {
       if (balance !== undefined && balance !== '') admin.wallet.balance = parseFloat(balance);
       if (fuliza !== undefined && fuliza !== '') admin.wallet.fuliza = parseFloat(fuliza);
       if (airtime !== undefined && airtime !== '') admin.wallet.airtime = parseFloat(airtime);
+      if (bonga !== undefined && bonga !== '') admin.wallet.bonga = parseFloat(bonga);
+      if (txPrefix !== undefined && txPrefix !== '') admin.wallet.txPrefix = txPrefix.toString().trim().toUpperCase().slice(0, 3);
       saveDb(db);
       if (!updatedWallet) updatedWallet = admin.wallet;
     }

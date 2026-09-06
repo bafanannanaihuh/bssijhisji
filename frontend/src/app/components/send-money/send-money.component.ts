@@ -22,10 +22,10 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
           <!-- Top Row: Messages App Header -->
           <div class="notif-header-row">
             <div class="notif-header-left">
-              <!-- Official Google Messages Blue Icon (Zero white background, strictly transparent) -->
+              <!-- Redesigned High-Definition Yellow Contact Icon replacing existing blue icon -->
               <div class="msg-bubble-icon">
                 <img 
-                  src="data:image/png;base64,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" 
+                  src="/icons/messages-contact-icon.svg" 
                   alt="Messages" 
                   class="messages-app-logo" 
                 />
@@ -48,16 +48,16 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
             </button>
           </div>
 
-          <!-- Middle Row: Content & Cyan 'M' Avatar -->
+          <!-- Middle Row: Content & Contact Avatar with Messages Icon from user image -->
           <div class="notif-body-row">
             <div class="notif-content-col">
               <div class="notif-title">MPESA</div>
               <div class="notif-message">
-                {{ completedTx?.id || 'UI6LQ5B06S' }} Confirmed. Ksh{{ (completedTx?.amount || amount || 1) | number:'1.2-2' }} sent to {{ completedTx?.recipient || resolvedRecipientName }} {{ completedTx?.phone || phoneNumber }} on {{ txFormattedDate }} at {{ txFormattedTime }}. New M...
+                {{ completedTx?.id || 'UKL8J3M9Q2' }} Confirmed. Ksh{{ (completedTx?.amount || amount || 1) | number:'1.2-2' }} sent to {{ completedTx?.recipient || resolvedRecipientName }} {{ completedTx?.phone || phoneNumber }} on {{ txFormattedDate }} at {{ txFormattedTime }}. New M-PESA balance is Ksh{{ (completedTx?.balanceAfter !== undefined ? completedTx.balanceAfter : (user?.balance || 61.66)) | number:'1.2-2' }}. Transaction cost, Ksh{{ (completedTx?.cost !== undefined ? completedTx.cost : transactionFee) | number:'1.2-2' }}.
               </div>
             </div>
-            <div class="notif-avatar-m">
-              M
+            <div class="notif-avatar-contact">
+              <img src="/icons/messages-contact-icon.svg" alt="MPESA" class="contact-avatar-img" />
             </div>
           </div>
 
@@ -357,13 +357,19 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
       <!-- ========================================================================= -->
       <div class="step-view pin-step" *ngIf="currentStep === 3">
         <div class="send-header">
-          <button class="back-btn" (click)="currentStep = 2" [disabled]="isSubmittingTx">
+          <button class="back-btn" (click)="currentStep = 2" [disabled]="isSubmittingTx" title="Back">
             <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
           </button>
           <h2 class="header-title">Enter M-PESA PIN</h2>
-          <div class="placeholder-right"></div>
+          <!-- Close X button to cancel transaction and return to home -->
+          <button class="close-x-btn" (click)="goBack()" [disabled]="isSubmittingTx" title="Cancel transaction">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
         <div class="pin-step-content">
@@ -394,8 +400,13 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
             </div>
           </div>
 
+          <!-- Red declination error message on wrong PIN -->
+          <div class="pin-error-text" *ngIf="pinErrorMessage">
+            {{ pinErrorMessage }}
+          </div>
+
           <!-- Numeric Keypad matching photo -->
-          <div class="keypad-wrapper" [class.disabled-keypad]="isSubmittingTx || isWrongPinDancing">
+          <div class="keypad-wrapper" [class.disabled-keypad]="isSubmittingTx">
             <div class="keypad-row">
               <button class="num-key" (click)="pressTxPin('1')">1</button>
               <button class="num-key" (click)="pressTxPin('2')">2</button>
@@ -722,18 +733,24 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
       text-overflow: ellipsis;
     }
 
-    .notif-avatar-m {
-      width: 42px;
-      height: 42px;
+    .notif-avatar-contact {
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      background: #4dd0e1;
-      color: #ffffff;
-      font-size: 20px;
-      font-weight: 600;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
+      background: #f9ab00;
+    }
+    .contact-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .notif-actions-row {
@@ -1253,6 +1270,62 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
         transform: translateY(3px) scale(0.95);
         background-color: #22a958;
       }
+    }
+
+    .close-x-btn {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      color: #ffffff;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .close-x-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+    .close-x-btn:active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes redPinDance {
+      0% { transform: translateX(0); }
+      15% { transform: translateX(-12px) rotate(-1.5deg); }
+      30% { transform: translateX(11px) rotate(1.5deg); }
+      45% { transform: translateX(-9px) rotate(-1deg); }
+      60% { transform: translateX(7px) rotate(0.8deg); }
+      75% { transform: translateX(-4px); }
+      90% { transform: translateX(2px); }
+      100% { transform: translateX(0); }
+    }
+
+    .pin-boxes-container.wrong-dance {
+      animation: redPinDance 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+    .pin-boxes-container.wrong-dance .pin-box {
+      border-color: #ff3333 !important;
+      background: rgba(255, 51, 51, 0.18) !important;
+      box-shadow: 0 0 16px rgba(255, 51, 51, 0.5) !important;
+    }
+    .pin-boxes-container.wrong-dance .pin-dot {
+      background-color: #ff3333 !important;
+      box-shadow: 0 0 10px rgba(255, 51, 51, 0.9) !important;
+    }
+
+    .pin-error-text {
+      color: #ff3333;
+      font-size: 13.5px;
+      font-weight: 500;
+      text-align: center;
+      margin-top: 12px;
+      margin-bottom: -4px;
+      animation: fadeIn 0.2s ease;
     }
 
     .pin-boxes-container.shaking {
@@ -1810,8 +1883,25 @@ export class SendMoneyComponent implements OnInit {
     this.currentStep = 3; // Image 3 (Enter M-PESA PIN)
   }
 
+  private wrongTxDanceTimer: any = null;
+
   pressTxPin(digit: string): void {
-    if (this.isSubmittingTx || this.isWrongPinDancing || this.txPin.length >= 4) {
+    if (this.isSubmittingTx) {
+      return;
+    }
+
+    // If wrong PIN was dancing, immediately cancel dance, clear PIN, and accept new digit
+    if (this.isWrongPinDancing) {
+      if (this.wrongTxDanceTimer) {
+        clearTimeout(this.wrongTxDanceTimer);
+        this.wrongTxDanceTimer = null;
+      }
+      this.isWrongPinDancing = false;
+      this.txPin = '';
+      this.pinErrorMessage = '';
+    }
+
+    if (this.txPin.length >= 4) {
       return;
     }
     this.txPin += digit;
@@ -1825,12 +1915,13 @@ export class SendMoneyComponent implements OnInit {
           if (res && res.success) {
             // Valid working PIN -> Process delay then execute transaction
             this.isSubmittingTx = true;
+            this.pinErrorMessage = '';
             this.changeDetectorRef.markForCheck();
             setTimeout(() => {
               this.executeTransaction();
             }, 800);
           } else {
-            // Wrong PIN: boxes dance in red, then reset!
+            // Wrong PIN: boxes dance in red with declination message!
             this.triggerWrongTxPinDance();
           }
         },
@@ -1843,8 +1934,14 @@ export class SendMoneyComponent implements OnInit {
 
   triggerWrongTxPinDance(): void {
     this.isWrongPinDancing = true;
+    this.pinErrorMessage = 'Incorrect M-PESA PIN. Please try again.';
     this.changeDetectorRef.markForCheck();
-    setTimeout(() => {
+
+    if (this.wrongTxDanceTimer) {
+      clearTimeout(this.wrongTxDanceTimer);
+    }
+
+    this.wrongTxDanceTimer = setTimeout(() => {
       this.txPin = '';
       this.isWrongPinDancing = false;
       this.changeDetectorRef.markForCheck();
@@ -1852,7 +1949,18 @@ export class SendMoneyComponent implements OnInit {
   }
 
   deleteTxPin(): void {
-    if (this.isSubmittingTx || this.isWrongPinDancing) return;
+    if (this.isSubmittingTx) return;
+    if (this.isWrongPinDancing) {
+      if (this.wrongTxDanceTimer) {
+        clearTimeout(this.wrongTxDanceTimer);
+        this.wrongTxDanceTimer = null;
+      }
+      this.isWrongPinDancing = false;
+      this.txPin = '';
+      this.pinErrorMessage = '';
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
     if (this.txPin.length > 0) {
       this.txPin = this.txPin.slice(0, -1);
       this.pinErrorMessage = '';
@@ -1872,8 +1980,8 @@ export class SendMoneyComponent implements OnInit {
     const month = now.toLocaleString('en-US', { month: 'short' });
     this.receiptDisplayDateTime = `${day}${suffix} ${month} ${now.getFullYear()} | ${this.txFormattedTime.toLowerCase()}`;
 
-    // Standard M-PESA Transaction ID format starting with 'U' (e.g. UI6LQ5B06S)
-    const randCode = generateMpesaTxCode();
+    // Standard M-PESA Transaction ID format with custom 3-char prefix (e.g. TBK7823901)
+    const randCode = generateMpesaTxCode(this.user?.txPrefix);
 
     const amountVal = this.amount || 1;
     const feeVal = calculateMpesaFee(amountVal);
@@ -1904,6 +2012,9 @@ export class SendMoneyComponent implements OnInit {
     setTimeout(() => {
       this.showNotificationPopup = true;
       this.isDismissingNotif = false;
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate([120, 60, 120]); } catch (e) {}
+      }
       this.changeDetectorRef.markForCheck();
 
       // Automatically dismiss popup after 6.5s

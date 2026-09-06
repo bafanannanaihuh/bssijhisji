@@ -7,12 +7,12 @@ import { AdminComponent } from './components/admin/admin.component';
 import { PhoneScreenComponent } from './components/phone-screen/phone-screen.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'pin', pathMatch: 'full' },
+  { path: '', component: SplashComponent },
+  { path: 'splash', component: SplashComponent },
   { path: 'pin', component: PinEntryComponent },
   { path: 'home', component: HomeComponent },
   { path: 'send-money', component: SendMoneyComponent },
   { path: 'admin', component: AdminComponent },
-  { path: 'splash', component: SplashComponent },
   { path: 'phone-screen', component: PhoneScreenComponent },
-  { path: '**', redirectTo: 'pin' }
+  { path: '**', redirectTo: '' }
 ];
