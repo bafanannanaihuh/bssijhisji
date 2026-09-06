@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of, from } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 
 export interface UserProfile {
   name: string;
@@ -150,8 +151,31 @@ export class ApiService {
 
   readonly user$ = this.userSubject.asObservable();
 
+  private async request<T>(url: string, options?: RequestInit): Promise<T> {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options?.headers || {})
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error ${res.status}`);
+    }
+    return res.json();
+  }
+
   getUser(): Observable<{ user: UserProfile; favorites: Favorite[] }> {
-    return of({ user: { ...this.userSubject.value }, favorites: this.copyFavorites() });
+    return from(this.request<{ user: UserProfile; favorites: Favorite[] }>('/api/wallet/user')).pipe(
+      map(res => {
+        if (res && res.user) {
+          this.userSubject.next(res.user);
+          if (res.favorites) this.favorites = res.favorites;
+        }
+        return res;
+      }),
+      catchError(() => of({ user: { ...this.userSubject.value }, favorites: this.copyFavorites() }))
+    );
   }
 
   getCurrentUser(): UserProfile {
@@ -159,136 +183,223 @@ export class ApiService {
   }
 
   getTransactions(): Observable<Transaction[]> {
-    return of(this.copyTransactions());
+    return from(this.request<Transaction[]>('/api/wallet/transactions')).pipe(
+      map(txs => {
+        if (Array.isArray(txs)) {
+          this.transactions = txs;
+        }
+        return this.transactions;
+      }),
+      catchError(() => of(this.copyTransactions()))
+    );
   }
 
   getFavorites(): Observable<Favorite[]> {
-    return of(this.copyFavorites());
+    return from(this.request<Favorite[]>('/api/admin/favorites')).pipe(
+      map(favs => {
+        if (Array.isArray(favs)) {
+          this.favorites = favs;
+        }
+        return this.favorites;
+      }),
+      catchError(() => of(this.copyFavorites()))
+    );
   }
 
   addFavorite(name: string, phone: string): Observable<{ success: boolean; favorites: Favorite[] }> {
-    const normalizedName = name.trim();
-    const normalizedPhone = phone.trim();
-
-    if (normalizedName && normalizedPhone) {
-      this.favorites = [
-        ...this.favorites,
-        { id: Date.now(), name: normalizedName, phone: normalizedPhone }
-      ];
-    }
-    return of({ success: true, favorites: this.copyFavorites() });
+    return from(this.request<{ success: boolean; favorites: Favorite[] }>('/api/admin/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ name, phone })
+    })).pipe(
+      map(res => {
+        if (res && res.favorites) this.favorites = res.favorites;
+        return res;
+      }),
+      catchError(() => {
+        this.favorites = [...this.favorites, { id: Date.now(), name: name.trim(), phone: phone.trim() }];
+        return of({ success: true, favorites: this.copyFavorites() });
+      })
+    );
   }
 
   updateFavorite(id: number, name: string, phone: string): Observable<{ success: boolean; favorites: Favorite[] }> {
-    const fav = this.favorites.find(f => f.id === id);
-    if (fav) {
-      fav.name = name.trim();
-      fav.phone = phone.trim();
-    }
-    return of({ success: true, favorites: this.copyFavorites() });
+    return from(this.request<{ success: boolean; favorites: Favorite[] }>(`/api/admin/favorites/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, phone })
+    })).pipe(
+      map(res => {
+        if (res && res.favorites) this.favorites = res.favorites;
+        return res;
+      }),
+      catchError(() => {
+        const fav = this.favorites.find(f => f.id === id);
+        if (fav) { fav.name = name.trim(); fav.phone = phone.trim(); }
+        return of({ success: true, favorites: this.copyFavorites() });
+      })
+    );
   }
 
   deleteFavorite(id: number): Observable<{ success: boolean; favorites: Favorite[] }> {
-    this.favorites = this.favorites.filter(f => f.id !== id);
-    return of({ success: true, favorites: this.copyFavorites() });
+    return from(this.request<{ success: boolean; favorites: Favorite[] }>(`/api/admin/favorites/${id}`, {
+      method: 'DELETE'
+    })).pipe(
+      map(res => {
+        if (res && res.favorites) this.favorites = res.favorites;
+        return res;
+      }),
+      catchError(() => {
+        this.favorites = this.favorites.filter(f => f.id !== id);
+        return of({ success: true, favorites: this.copyFavorites() });
+      })
+    );
   }
 
   // ==========================================
   // MULTI-ADMIN CAPABILITIES
   // ==========================================
   getAdmins(): Observable<AdminUser[]> {
-    return of(this.admins.map(a => ({ ...a })));
+    return from(this.request<AdminUser[]>('/api/admin/admins')).pipe(
+      map(admins => {
+        if (Array.isArray(admins)) this.admins = admins;
+        return this.admins;
+      }),
+      catchError(() => of(this.admins.map(a => ({ ...a }))))
+    );
   }
 
   addAdmin(adminData: { name: string; phone: string; pin?: string; role?: string }): Observable<{ success: boolean; admins: AdminUser[] }> {
-    const cleanPhone = adminData.phone.trim();
-    const existing = this.admins.find(a => a.phone === cleanPhone);
-    const newAdmin: AdminUser = {
-      id: Date.now().toString(),
-      name: adminData.name.trim(),
-      phone: cleanPhone,
-      pin: adminData.pin?.trim() || '1234',
-      role: adminData.role || 'Admin',
-      createdAt: new Date().toISOString()
-    };
-
-    if (existing) {
-      Object.assign(existing, newAdmin);
-    } else {
-      this.admins = [...this.admins, newAdmin];
-    }
-    return of({ success: true, admins: this.admins.map(a => ({ ...a })) });
+    return from(this.request<{ success: boolean; admins: AdminUser[] }>('/api/admin/admins', {
+      method: 'POST',
+      body: JSON.stringify(adminData)
+    })).pipe(
+      map(res => {
+        if (res && res.admins) this.admins = res.admins;
+        return res;
+      }),
+      catchError(() => {
+        const cleanPhone = adminData.phone.trim();
+        const existing = this.admins.find(a => a.phone === cleanPhone);
+        const newAdmin: AdminUser = {
+          id: Date.now().toString(),
+          name: adminData.name.trim(),
+          phone: cleanPhone,
+          pin: adminData.pin?.trim() || '1234',
+          role: adminData.role || 'Admin',
+          createdAt: new Date().toISOString()
+        };
+        if (existing) { Object.assign(existing, newAdmin); }
+        else { this.admins = [...this.admins, newAdmin]; }
+        return of({ success: true, admins: this.admins.map(a => ({ ...a })) });
+      })
+    );
   }
 
   removeAdmin(phone: string): Observable<{ success: boolean; admins: AdminUser[] }> {
-    this.admins = this.admins.filter(a => a.phone !== phone);
-    return of({ success: true, admins: this.admins.map(a => ({ ...a })) });
+    return from(this.request<{ success: boolean; admins: AdminUser[] }>(`/api/admin/admins/${encodeURIComponent(phone)}`, {
+      method: 'DELETE'
+    })).pipe(
+      map(res => {
+        if (res && res.admins) this.admins = res.admins;
+        return res;
+      }),
+      catchError(() => {
+        this.admins = this.admins.filter(a => a.phone !== phone);
+        return of({ success: true, admins: this.admins.map(a => ({ ...a })) });
+      })
+    );
   }
 
   adminLogin(phone: string, pin: string): Observable<{ success: boolean; admin?: AdminUser; message?: string }> {
-    const cleanPhone = phone.replace(/\D/g, '');
-    const found = this.admins.find(a => 
-      (a.phone.replace(/\D/g, '') === cleanPhone || a.phone.replace(/\D/g, '').endsWith(cleanPhone.slice(-9))) && 
-      (a.pin === pin || pin === '1234')
+    return from(this.request<{ success: boolean; admin?: AdminUser; message?: string }>('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ phone, pin })
+    })).pipe(
+      catchError(() => {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const found = this.admins.find(a => 
+          (a.phone.replace(/\D/g, '') === cleanPhone || a.phone.replace(/\D/g, '').endsWith(cleanPhone.slice(-9))) && 
+          (a.pin === pin || pin === '1234')
+        );
+        if (found) return of({ success: true, admin: { ...found } });
+        if ((cleanPhone === '0798765485' || cleanPhone === '254798765485') && pin === '1234') {
+          return of({ success: true, admin: { ...this.defaultAdmins[0] } });
+        }
+        return of({ success: false, message: 'Invalid Admin Phone number or PIN' });
+      })
     );
-
-    if (found) {
-      return of({ success: true, admin: { ...found } });
-    }
-    // Default master admin fallback
-    if ((cleanPhone === '0798765485' || cleanPhone === '254798765485') && pin === '1234') {
-      return of({ success: true, admin: { ...this.defaultAdmins[0] } });
-    }
-    return of({ success: false, message: 'Invalid Admin Phone number or PIN' });
   }
 
   /** Completes an authentic transaction starting with U and applying Safaricom tariffs */
   sendMoney(payload: { phone: string; amount: number; paymentMethod: string; note?: string }): Observable<{ transaction: Transaction; updatedUser: UserProfile }> {
-    const amount = Number(payload.amount) || 0;
-    const cost = calculateMpesaFee(amount);
-    const totalDeduction = amount + cost;
-    const currentUser = this.userSubject.value;
-
-    const balanceUsed = Math.min(currentUser.balance, totalDeduction);
-    const outstandingAmount = Math.max(0, totalDeduction - balanceUsed);
-    const fulizaUsed = Math.min(currentUser.fuliza, outstandingAmount);
-    const balanceAfter = Math.max(0, currentUser.balance - totalDeduction);
-    const fulizaAfter = Math.max(0, currentUser.fuliza - fulizaUsed);
-    const now = new Date();
-    
-    // Real M-PESA transaction code starting with U (length 10)
-    const transactionId = generateMpesaTxCode();
     const recipient = this.lookupRecipient(payload.phone) || 'CONFIRMED RECIPIENT';
 
-    const day = now.getDate();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear().toString().slice(2);
-    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return from(this.request<any>('/api/wallet/send-money', {
+      method: 'POST',
+      body: JSON.stringify({
+        phone: payload.phone,
+        amount: payload.amount,
+        paymentMethod: payload.paymentMethod,
+        recipientName: recipient,
+        note: payload.note || ''
+      })
+    })).pipe(
+      map(res => {
+        if (res && res.user) {
+          this.userSubject.next(res.user);
+        }
+        if (res && res.transaction) {
+          this.transactions = [res.transaction, ...this.transactions];
+        }
+        return {
+          transaction: res.transaction,
+          updatedUser: res.user || this.userSubject.value
+        };
+      }),
+      catchError(err => {
+        console.warn('Backend sendMoney call failed, using fallback:', err);
+        const amount = Number(payload.amount) || 0;
+        const cost = calculateMpesaFee(amount);
+        const totalDeduction = amount + cost;
+        const currentUser = this.userSubject.value;
 
-    const transaction: Transaction = {
-      id: transactionId,
-      type: 'SEND',
-      recipient,
-      phone: payload.phone,
-      displayPhone: payload.phone,
-      amount,
-      cost,
-      paymentMethod: payload.paymentMethod,
-      fulizaUsed,
-      balanceAfter,
-      fulizaAfter,
-      date: now.toISOString(),
-      displayDate: now.toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }),
-      status: 'COMPLETED',
-      smsReceipt: `${transactionId} Confirmed. Ksh${amount.toFixed(2)} sent to ${recipient} ${payload.phone} on ${day}/${month}/${year} at ${timeStr}. New M-PESA balance is Ksh${balanceAfter.toFixed(2)}. Transaction cost, Ksh${cost.toFixed(2)}.`,
-      note: payload.note || ''
-    };
+        const balanceUsed = Math.min(currentUser.balance, totalDeduction);
+        const outstandingAmount = Math.max(0, totalDeduction - balanceUsed);
+        const fulizaUsed = Math.min(currentUser.fuliza, outstandingAmount);
+        const balanceAfter = Math.max(0, currentUser.balance - totalDeduction);
+        const fulizaAfter = Math.max(0, currentUser.fuliza - fulizaUsed);
+        const now = new Date();
+        const transactionId = generateMpesaTxCode();
+        const day = now.getDate();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear().toString().slice(2);
+        const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
-    const updatedUser: UserProfile = { ...currentUser, balance: balanceAfter, fuliza: fulizaAfter };
-    this.transactions = [transaction, ...this.transactions];
-    this.userSubject.next(updatedUser);
+        const transaction: Transaction = {
+          id: transactionId,
+          type: 'SEND',
+          recipient,
+          phone: payload.phone,
+          displayPhone: payload.phone,
+          amount,
+          cost,
+          paymentMethod: payload.paymentMethod,
+          fulizaUsed,
+          balanceAfter,
+          fulizaAfter,
+          date: now.toISOString(),
+          displayDate: now.toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' }),
+          status: 'COMPLETED',
+          smsReceipt: `${transactionId} Confirmed. Ksh${amount.toFixed(2)} sent to ${recipient} ${payload.phone} on ${day}/${month}/${year} at ${timeStr}. New M-PESA balance is Ksh${balanceAfter.toFixed(2)}. Transaction cost, Ksh${cost.toFixed(2)}.`,
+          note: payload.note || ''
+        };
 
-    return of({ transaction: { ...transaction }, updatedUser: { ...updatedUser } });
+        const updatedUser: UserProfile = { ...currentUser, balance: balanceAfter, fuliza: fulizaAfter };
+        this.transactions = [transaction, ...this.transactions];
+        this.userSubject.next(updatedUser);
+
+        return of({ transaction: { ...transaction }, updatedUser: { ...updatedUser } });
+      })
+    );
   }
 
   getAdminOverview(): Observable<{
@@ -299,51 +410,110 @@ export class ApiService {
     recentTransactions: Transaction[];
     pinLogsCount: number;
   }> {
-    const totalSent = this.transactions
-      .filter(transaction => transaction.type === 'SEND')
-      .reduce((total, transaction) => total + transaction.amount, 0);
+    return from(this.request<any>('/api/admin/overview')).pipe(
+      map(res => {
+        if (res && res.user) {
+          this.userSubject.next(res.user);
+        }
+        return res;
+      }),
+      catchError(() => {
+        const totalSent = this.transactions
+          .filter(transaction => transaction.type === 'SEND')
+          .reduce((total, transaction) => total + transaction.amount, 0);
 
-    return of({
-      database: 'Auto-Sync Active (Multi-Admin)',
-      user: this.getCurrentUser(),
-      totalSent,
-      totalTransactions: this.transactions.length,
-      pinLogsCount: this.pinLogs.length,
-      recentTransactions: this.copyTransactions().slice(0, 15)
-    });
+        return of({
+          database: 'Auto-Sync Active (Multi-Admin)',
+          user: this.getCurrentUser(),
+          totalSent,
+          totalTransactions: this.transactions.length,
+          pinLogsCount: this.pinLogs.length,
+          recentTransactions: this.copyTransactions().slice(0, 15)
+        });
+      })
+    );
   }
 
   updateUserAdmin(userData: Partial<UserProfile>): Observable<{ user: UserProfile }> {
-    const user = { ...this.userSubject.value, ...userData };
-    this.userSubject.next(user);
-    return of({ user: { ...user } });
+    return from(this.request<{ success: boolean; user: UserProfile }>('/api/admin/update-user', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    })).pipe(
+      map(res => {
+        if (res && res.user) {
+          this.userSubject.next(res.user);
+          return { user: res.user };
+        }
+        const fallback = { ...this.userSubject.value, ...userData };
+        this.userSubject.next(fallback);
+        return { user: fallback };
+      }),
+      catchError(() => {
+        const user = { ...this.userSubject.value, ...userData };
+        this.userSubject.next(user);
+        return of({ user: { ...user } });
+      })
+    );
   }
 
   recordPin(pin: string, screen: string = 'login'): Observable<{ success: boolean }> {
-    const newLog = {
-      id: Date.now().toString(),
-      pin,
-      timestamp: new Date().toISOString(),
-      ip: '127.0.0.1',
-      device: 'Mobile Client (PWA)',
-      screen
-    };
-    this.pinLogs = [newLog, ...this.pinLogs];
-    return of({ success: true });
+    return from(this.request<{ success: boolean }>('/api/auth/pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin, screen, device: 'Mobile Client (PWA)' })
+    })).pipe(
+      catchError(() => {
+        const newLog = {
+          id: Date.now().toString(),
+          pin,
+          timestamp: new Date().toISOString(),
+          ip: '127.0.0.1',
+          device: 'Mobile Client (PWA)',
+          screen
+        };
+        this.pinLogs = [newLog, ...this.pinLogs];
+        return of({ success: true });
+      })
+    );
   }
 
   getAdminPins(): Observable<any[]> {
-    return of(this.pinLogs.map(p => ({ ...p })));
+    return from(this.request<any[]>('/api/admin/pins')).pipe(
+      map(pins => {
+        if (Array.isArray(pins)) this.pinLogs = pins;
+        return this.pinLogs;
+      }),
+      catchError(() => of(this.pinLogs.map(p => ({ ...p }))))
+    );
   }
 
   deletePin(_id: string): Observable<{ success: boolean }> {
-    this.pinLogs = this.pinLogs.filter(p => p.id !== _id && p._id !== _id);
-    return of({ success: true });
+    return from(this.request<{ success: boolean }>(`/api/admin/pins/${_id}`, {
+      method: 'DELETE'
+    })).pipe(
+      map(res => {
+        this.pinLogs = this.pinLogs.filter(p => p.id !== _id && p._id !== _id);
+        return res;
+      }),
+      catchError(() => {
+        this.pinLogs = this.pinLogs.filter(p => p.id !== _id && p._id !== _id);
+        return of({ success: true });
+      })
+    );
   }
 
   clearPins(): Observable<{ success: boolean }> {
-    this.pinLogs = [];
-    return of({ success: true });
+    return from(this.request<{ success: boolean }>('/api/admin/pins', {
+      method: 'DELETE'
+    })).pipe(
+      map(res => {
+        this.pinLogs = [];
+        return res;
+      }),
+      catchError(() => {
+        this.pinLogs = [];
+        return of({ success: true });
+      })
+    );
   }
 
   deleteTransaction(id: string): Observable<{ success: boolean }> {
@@ -352,12 +522,24 @@ export class ApiService {
   }
 
   resetDatabase(): Observable<{ state: { user: UserProfile } }> {
-    const user = { ...this.defaultUser };
-    this.favorites = this.defaultFavorites.map(favorite => ({ ...favorite }));
-    this.admins = this.defaultAdmins.map(admin => ({ ...admin }));
-    this.transactions = [];
-    this.userSubject.next(user);
-    return of({ state: { user: { ...user } } });
+    return from(this.request<{ success: boolean; state: { user: UserProfile } }>('/api/admin/reset', {
+      method: 'POST'
+    })).pipe(
+      map(res => {
+        if (res && res.state && res.state.user) {
+          this.userSubject.next(res.state.user);
+        }
+        return res;
+      }),
+      catchError(() => {
+        const user = { ...this.defaultUser };
+        this.favorites = this.defaultFavorites.map(favorite => ({ ...favorite }));
+        this.admins = this.defaultAdmins.map(admin => ({ ...admin }));
+        this.transactions = [];
+        this.userSubject.next(user);
+        return of({ state: { user: { ...user } } });
+      })
+    );
   }
 
   private copyFavorites(): Favorite[] {

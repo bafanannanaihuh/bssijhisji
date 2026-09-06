@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService, UserProfile, Transaction } from '../../services/api.service';
@@ -1582,9 +1582,10 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
     }
   `]
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
+  private pollInterval: any;
 
   user: UserProfile = {
     name: 'Regarn',
@@ -1628,6 +1629,17 @@ export class HomeComponent implements OnInit {
     });
 
     this.fetchData();
+
+    // Live auto-sync interval every 2.5 seconds so admin adjustments reflect immediately across all devices
+    this.pollInterval = setInterval(() => {
+      this.fetchData();
+    }, 2500);
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+    }
   }
 
   fetchData(): void {
