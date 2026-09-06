@@ -69,6 +69,19 @@ import { PwaService } from '../../services/pwa.service';
               />
             </div>
 
+            <div class="form-field">
+              <label>Backend API URL (If frontend is on Vercel)</label>
+              <input 
+                type="url" 
+                [(ngModel)]="backendUrl" 
+                name="backendUrl" 
+                placeholder="e.g. https://my-backend.onrender.com" 
+              />
+              <small class="field-hint" style="font-size: 11px; color: #9aa0a6; margin-top: 4px; display: block;">
+                Leave empty if running fullstack on Render, or paste your new Render backend URL if running frontend on Vercel.
+              </small>
+            </div>
+
             <div class="login-err" *ngIf="loginError">{{ loginError }}</div>
 
             <button type="submit" class="primary-btn w-full">Log In to Dashboard</button>
@@ -1423,6 +1436,7 @@ export class AdminComponent implements OnInit {
   loginPhone = '0798765485';
   loginPin = '';
   loginError = '';
+  backendUrl = '';
 
   // Tab & General State
   activeTab = 'user';
@@ -1477,6 +1491,7 @@ export class AdminComponent implements OnInit {
   ngOnInit(): void {
     this.pwaService.isInstallable$.subscribe(v => this.isInstallable = v);
     this.pwaService.isStandalone$.subscribe(v => this.isStandalone = v);
+    this.backendUrl = this.api.getApiBase();
 
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('mpesa_current_admin') : null;
     if (saved) {
@@ -1522,6 +1537,10 @@ export class AdminComponent implements OnInit {
     if (!this.loginPhone.trim() || !this.loginPin.trim()) {
       this.loginError = 'Please enter your admin phone number and password/PIN.';
       return;
+    }
+
+    if (this.backendUrl) {
+      this.api.setApiBaseUrl(this.backendUrl);
     }
 
     this.api.adminLogin(this.loginPhone, this.loginPin).subscribe({
