@@ -557,6 +557,12 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
         </div>
       </div>
 
+      <!-- In-App Floating Toast Notification -->
+      <div class="send-toast" *ngIf="toast.show" [ngClass]="toast.type">
+        <div class="send-toast-dot"></div>
+        <span>{{ toast.message }}</span>
+      </div>
+
       <!-- Bottom Gesture Bar -->
       <div class="bottom-bar">
         <div class="home-indicator"></div>
@@ -1593,6 +1599,42 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
       border-radius: 4px;
       opacity: 0.65;
     }
+    .send-toast {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1c2227;
+      color: #ffffff;
+      border: 1px solid #2e3840;
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      z-index: 1200;
+      max-width: 90%;
+      text-align: center;
+      animation: sendToastSlide 0.25s ease-out;
+    }
+    .send-toast.success .send-toast-dot { background: #00c853; }
+    .send-toast.info .send-toast-dot { background: #00e676; }
+    .send-toast.error .send-toast-dot { background: #ff5252; }
+    .send-toast.warning .send-toast-dot { background: #ff9100; }
+    .send-toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00c853;
+      flex-shrink: 0;
+    }
+    @keyframes sendToastSlide {
+      from { opacity: 0; transform: translate(-50%, -15px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
   `]
 })
 export class SendMoneyComponent implements OnInit {
@@ -1633,8 +1675,23 @@ export class SendMoneyComponent implements OnInit {
   showNotificationPopup = false;
   isDismissingNotif = false;
   private notifDismissTimer: any = null;
+  private toastTimer: any = null;
   txFormattedDate = '6/9/26';
   txFormattedTime = '12:22 PM';
+
+  toast = {
+    show: false,
+    message: '',
+    type: 'info' as 'info' | 'success' | 'error' | 'warning'
+  };
+
+  showToast(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info'): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toast = { show: true, message, type };
+    this.toastTimer = setTimeout(() => {
+      this.toast.show = false;
+    }, 3000);
+  }
 
   ngOnInit(): void {
     this.api.user$.subscribe(u => {
@@ -1706,7 +1763,7 @@ export class SendMoneyComponent implements OnInit {
   }
 
   scanQrCode(): void {
-    alert('QR scanner launched: Recipient 0712345678 scanned.');
+    this.showToast('QR scanner launched: Recipient scanned', 'success');
     this.phoneNumber = '0712345678';
     this.onPhoneChanged();
   }
@@ -1718,7 +1775,7 @@ export class SendMoneyComponent implements OnInit {
       this.api.addFavorite(name, phone).subscribe({
         next: (res) => {
           this.favorites = res.favorites;
-          alert(`Saved ${name} to favourites!`);
+          this.showToast(`Saved ${name} to favourites!`, 'success');
         }
       });
     }
@@ -1734,7 +1791,7 @@ export class SendMoneyComponent implements OnInit {
     const totalRequired = (this.amount || 0) + fee;
     const totalAvail = this.user.balance + this.user.fuliza;
     if (totalRequired > totalAvail) {
-      alert(`Insufficient funds. Transfer Ksh ${(this.amount || 0).toFixed(2)} + fee Ksh ${fee.toFixed(2)} requires Ksh ${totalRequired.toFixed(2)}. Your available balance is Ksh ${this.user.balance.toFixed(2)} and Fuliza is Ksh ${this.user.fuliza.toFixed(2)}.`);
+      this.showToast(`Insufficient funds. Ksh ${totalRequired.toFixed(2)} needed, available Ksh ${totalAvail.toFixed(2)}.`, 'error');
       return;
     }
     this.currentStep = 2; // Image 2 (Confirm)
@@ -1919,20 +1976,20 @@ export class SendMoneyComponent implements OnInit {
         text: this.completedTx.smsReceipt
       }).catch(() => {});
     } else {
-      alert(this.completedTx?.smsReceipt || 'M-PESA Receipt ready to share');
+      this.showToast('M-PESA Receipt ready to share', 'info');
     }
   }
 
   handleReverseTx(): void {
-    alert(`Reversal request initiated for transaction ${this.completedTx?.id || 'UI6LQ5B06S'}. You will receive an SMS shortly.`);
+    this.showToast(`Reversal request initiated for ${this.completedTx?.id || 'transaction'}`, 'info');
   }
 
   handleSchedulePayment(): void {
-    alert(`Schedule regular payments for ${this.completedTx?.recipient || this.resolvedRecipientName || 'contact'}`);
+    this.showToast(`Schedule payments for ${this.completedTx?.recipient || this.resolvedRecipientName || 'contact'}`, 'info');
   }
 
   handleDownloadReceipt(): void {
-    alert(`Downloading receipt for transaction ${this.completedTx?.id || 'UI6LQ5B06S'}...`);
+    this.showToast(`Downloading receipt for ${this.completedTx?.id || 'transaction'}...`, 'success');
   }
 
   finishTransaction(): void {

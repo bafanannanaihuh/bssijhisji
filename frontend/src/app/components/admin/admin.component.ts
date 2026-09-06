@@ -11,6 +11,37 @@ import { PwaService } from '../../services/pwa.service';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="admin-container">
+      <!-- In-App Toast Notification Banner (No "localhost says" alerts) -->
+      <div class="toast-container" *ngIf="showToast" [class]="'toast-' + toastType" (click)="dismissToast()">
+        <div class="toast-icon">
+          <span *ngIf="toastType === 'success'">✓</span>
+          <span *ngIf="toastType === 'error'">✕</span>
+          <span *ngIf="toastType === 'info'">ℹ</span>
+        </div>
+        <div class="toast-content">{{ toastMessage }}</div>
+        <button type="button" class="toast-close" (click)="dismissToast()">✕</button>
+      </div>
+
+      <!-- In-App Confirmation Modal (No browser confirm popups) -->
+      <div class="modal-backdrop" *ngIf="showConfirmModal" (click)="cancelConfirm()">
+        <div class="modal-dialog" (click)="$event.stopPropagation()">
+          <div class="modal-icon-warn">⚠️</div>
+          <h3 class="modal-title">{{ confirmTitle }}</h3>
+          <p class="modal-desc">{{ confirmMessage }}</p>
+          <div class="modal-actions">
+            <button type="button" class="cancel-btn" (click)="cancelConfirm()">Cancel</button>
+            <button 
+              type="button" 
+              class="modal-action-btn"
+              [class.danger-btn]="confirmBtnDanger" 
+              [class.primary-btn]="!confirmBtnDanger" 
+              (click)="executeConfirm()">
+              {{ confirmBtnLabel }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Admin Top Bar -->
       <div class="admin-topbar">
         <div class="topbar-left">
@@ -1448,6 +1479,260 @@ import { PwaService } from '../../services/pwa.service';
       gap: 16px;
       margin-top: 14px;
     }
+
+    /* In-App Toast Notification */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 22px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
+      animation: slideDownToast 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 92vw;
+      width: auto;
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+    @keyframes slideDownToast {
+      from { transform: translate(-50%, -35px); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .toast-success {
+      background: rgba(18, 38, 26, 0.95);
+      border: 1.5px solid #00c853;
+      box-shadow: 0 8px 30px rgba(0, 200, 83, 0.4);
+    }
+    .toast-error {
+      background: rgba(43, 18, 20, 0.95);
+      border: 1.5px solid #e50914;
+      box-shadow: 0 8px 30px rgba(229, 9, 20, 0.4);
+    }
+    .toast-info {
+      background: rgba(16, 32, 44, 0.95);
+      border: 1.5px solid #4dd0e1;
+      box-shadow: 0 8px 30px rgba(77, 208, 225, 0.4);
+    }
+    .toast-icon {
+      font-size: 17px;
+      font-weight: 800;
+    }
+    .toast-content {
+      flex: 1;
+      line-height: 1.4;
+    }
+    .toast-close {
+      background: none;
+      border: none;
+      color: #9aa6b2;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    /* In-App Confirmation Modal */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(6px);
+      z-index: 999998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeInBackdrop 0.2s ease;
+    }
+    @keyframes fadeInBackdrop {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-dialog {
+      background: #161b20;
+      border: 1.5px solid #303b46;
+      border-radius: 16px;
+      padding: 28px 22px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      animation: zoomInDialog 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes zoomInDialog {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-icon-warn {
+      font-size: 38px;
+      margin-bottom: 12px;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    .modal-desc {
+      font-size: 13.5px;
+      color: #9aa6b2;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .modal-actions button {
+      flex: 1;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal-action-btn {
+      border: none;
+    }
+
+    /* Full Mobile Responsiveness */
+    @media (max-width: 768px) {
+      .admin-container {
+        padding: 14px 10px 48px 10px;
+      }
+      .admin-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding-bottom: 14px;
+        margin-bottom: 16px;
+      }
+      .topbar-left {
+        width: 100%;
+      }
+      .topbar-left h2 {
+        font-size: 18px;
+      }
+      .topbar-right {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .install-shortcut-btn, .db-badge, .logout-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+      .admin-session {
+        display: block;
+        margin-top: 4px;
+        font-size: 11.5px;
+      }
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .metric-card {
+        padding: 12px 10px;
+      }
+      .m-val {
+        font-size: 16px;
+      }
+      .m-title {
+        font-size: 10.5px;
+      }
+      .m-sub {
+        font-size: 10.5px;
+      }
+      .admin-tabs {
+        overflow-x: auto;
+        padding-bottom: 6px;
+        margin-bottom: 16px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .admin-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .a-tab {
+        padding: 8px 12px;
+        font-size: 12.5px;
+      }
+      .section-card {
+        padding: 16px 12px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .card-title {
+        font-size: 15px;
+      }
+      .card-desc {
+        font-size: 12px;
+        margin-bottom: 14px;
+      }
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .form-inline {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .form-inline input, .form-inline select, .form-inline button {
+        width: 100%;
+      }
+      .primary-btn, .cancel-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 12px;
+        font-size: 13.5px;
+      }
+      .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .table-responsive {
+        margin: 0 -6px;
+      }
+      .data-table th, .data-table td {
+        padding: 8px 6px;
+        font-size: 11.5px;
+      }
+      .working-pin-chip {
+        padding: 6px 10px;
+        font-size: 14px;
+      }
+      .download-hero {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+      }
+      .download-info {
+        align-items: center;
+      }
+      .install-big-btn, .phone-screen-launch-btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .action-btn-row {
+        flex-direction: column;
+        width: 100%;
+      }
+      .install-instructions-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   `]
 })
 export class AdminComponent implements OnInit {
@@ -1478,6 +1763,20 @@ export class AdminComponent implements OnInit {
   currentPassInput: string = '';
   newPassInput: string = '';
   changePassMsg: string = '';
+
+  // In-App Toast Notification State (No browser alert)
+  showToast: boolean = false;
+  toastMessage: string = '';
+  toastType: 'success' | 'error' | 'info' = 'success';
+  private toastTimer: any = null;
+
+  // In-App Confirmation Modal State (No browser confirm)
+  showConfirmModal: boolean = false;
+  confirmTitle: string = '';
+  confirmMessage: string = '';
+  confirmBtnLabel: string = 'Confirm';
+  confirmBtnDanger: boolean = true;
+  private pendingConfirmCallback: (() => void) | null = null;
 
   // PWA State
   isInstallable = false;
@@ -1536,6 +1835,43 @@ export class AdminComponent implements OnInit {
     }
   }
 
+  // Toast & Modal Helper Functions
+  notify(message: string, type: 'success' | 'error' | 'info' = 'success'): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastMessage = message;
+    this.toastType = type;
+    this.showToast = true;
+    this.toastTimer = setTimeout(() => {
+      this.showToast = false;
+    }, 4000);
+  }
+
+  dismissToast(): void {
+    this.showToast = false;
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+  }
+
+  requestConfirm(title: string, message: string, onConfirm: () => void, btnLabel: string = 'Delete', isDanger: boolean = true): void {
+    this.confirmTitle = title;
+    this.confirmMessage = message;
+    this.confirmBtnLabel = btnLabel;
+    this.confirmBtnDanger = isDanger;
+    this.pendingConfirmCallback = onConfirm;
+    this.showConfirmModal = true;
+  }
+
+  cancelConfirm(): void {
+    this.showConfirmModal = false;
+    this.pendingConfirmCallback = null;
+  }
+
+  executeConfirm(): void {
+    const cb = this.pendingConfirmCallback;
+    this.showConfirmModal = false;
+    this.pendingConfirmCallback = null;
+    if (cb) cb();
+  }
+
   loadData(): void {
     const adminPhone = this.currentAdmin?.phone || '0798765485';
 
@@ -1580,6 +1916,7 @@ export class AdminComponent implements OnInit {
           if (typeof localStorage !== 'undefined') {
             localStorage.setItem('mpesa_current_admin', JSON.stringify(res.admin));
           }
+          this.notify(`Logged in as ${res.admin.name}`, 'success');
           this.loadData();
         } else {
           this.loginError = res?.message || 'Invalid admin credentials.';
@@ -1597,6 +1934,7 @@ export class AdminComponent implements OnInit {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('mpesa_current_admin');
     }
+    this.notify('Logged out. Please authenticate.', 'info');
   }
 
   // =============================================================
@@ -1607,6 +1945,7 @@ export class AdminComponent implements OnInit {
     this.api.updateUserAdmin(this.userForm, adminPhone).subscribe({
       next: () => {
         this.saveSuccessMessage = 'Your personal admin wallet and balances were updated successfully!';
+        this.notify('Personal wallet & live balances updated!', 'success');
         setTimeout(() => this.saveSuccessMessage = '', 3500);
         this.loadData();
       }
@@ -1618,17 +1957,21 @@ export class AdminComponent implements OnInit {
   // =============================================================
   handleAddWorkingPin(): void {
     if (!this.newWorkingPin || !/^\d{4}$/.test(this.newWorkingPin)) {
-      alert('Please enter a valid 4-digit PIN (e.g. 2580).');
+      this.notify('Please enter a valid 4-digit PIN (e.g. 2580).', 'error');
       return;
     }
     const adminPhone = this.currentAdmin?.phone || '0798765485';
-    this.api.addWorkingPin(adminPhone, this.newWorkingPin).subscribe({
+    const pinToAdd = this.newWorkingPin;
+    this.api.addWorkingPin(adminPhone, pinToAdd).subscribe({
       next: (res) => {
         if (res.success) {
           this.workingPins = res.workingPins;
-          this.workingPinMsg = `Working PIN ${this.newWorkingPin} added successfully!`;
+          this.workingPinMsg = `Working PIN ${pinToAdd} added successfully!`;
+          this.notify(`Working PIN ${pinToAdd} activated!`, 'success');
           this.newWorkingPin = '';
           setTimeout(() => this.workingPinMsg = '', 3500);
+        } else {
+          this.notify(res.message || 'Failed to add PIN', 'error');
         }
       }
     });
@@ -1636,7 +1979,7 @@ export class AdminComponent implements OnInit {
 
   handleDeleteWorkingPin(pin: string): void {
     if (this.workingPins.length <= 1) {
-      alert('You must keep at least one working PIN for your account.');
+      this.notify('You must keep at least one working PIN for your account. Add your new custom PIN first before deleting this one.', 'error');
       return;
     }
     const adminPhone = this.currentAdmin?.phone || '0798765485';
@@ -1645,9 +1988,10 @@ export class AdminComponent implements OnInit {
         if (res.success) {
           this.workingPins = res.workingPins;
           this.workingPinMsg = `Working PIN ${pin} removed.`;
+          this.notify(`Working PIN ${pin} deleted permanently.`, 'info');
           setTimeout(() => this.workingPinMsg = '', 3500);
         } else {
-          alert(res.message || 'Failed to remove working PIN');
+          this.notify(res.message || 'Failed to remove working PIN', 'error');
         }
       }
     });
@@ -1655,7 +1999,7 @@ export class AdminComponent implements OnInit {
 
   handleChangePassword(): void {
     if (!this.newPassInput.trim()) {
-      alert('Please enter a new password.');
+      this.notify('Please enter a new password.', 'error');
       return;
     }
     const adminPhone = this.currentAdmin?.phone || '0798765485';
@@ -1663,11 +2007,12 @@ export class AdminComponent implements OnInit {
       next: (res) => {
         if (res.success) {
           this.changePassMsg = res.message || 'Dashboard password updated successfully!';
+          this.notify('Admin Dashboard password updated successfully!', 'success');
           this.currentPassInput = '';
           this.newPassInput = '';
           setTimeout(() => this.changePassMsg = '', 4000);
         } else {
-          alert(res.message || 'Failed to update password.');
+          this.notify(res.message || 'Failed to update password.', 'error');
         }
       }
     });
@@ -1678,7 +2023,7 @@ export class AdminComponent implements OnInit {
   // =============================================================
   handleAddAdmin(): void {
     if (!this.newAdminName.trim() || !this.newAdminPhone.trim()) {
-      alert('Please provide admin name and phone number.');
+      this.notify('Please provide admin name and phone number.', 'error');
       return;
     }
 
@@ -1697,33 +2042,41 @@ export class AdminComponent implements OnInit {
         if (res.success) {
           this.adminsList = res.admins;
           this.adminActionMessage = `Admin "${this.newAdminName}" created successfully! They can log into /admin using phone ${this.newAdminPhone} and password "${this.newAdminPassword}".`;
+          this.notify(`Admin "${this.newAdminName}" created successfully!`, 'success');
           this.newAdminName = '';
           this.newAdminPhone = '';
           this.newAdminPassword = '1234';
           this.newAdminWorkingPin = '1234';
           setTimeout(() => this.adminActionMessage = '', 5500);
         } else {
-          alert(res.message || 'Failed to create admin');
+          this.notify(res.message || 'Failed to create admin', 'error');
         }
       }
     });
   }
 
   handleRemoveAdmin(phone: string): void {
-    if (confirm(`Revoke admin privileges and delete isolated account for phone: ${phone}?`)) {
-      const requesterPhone = this.currentAdmin?.phone || '0798765485';
-      this.api.revokeAdmin(phone, requesterPhone).subscribe({
-        next: (res) => {
-          if (res.success) {
-            this.adminsList = res.admins;
-            this.adminActionMessage = `Admin ${phone} revoked and account deleted.`;
-            setTimeout(() => this.adminActionMessage = '', 3500);
-          } else {
-            alert(res.message || 'Failed to revoke admin');
+    this.requestConfirm(
+      'Revoke Admin Access',
+      `Revoke admin privileges and delete isolated account for phone: ${phone}?`,
+      () => {
+        const requesterPhone = this.currentAdmin?.phone || '0798765485';
+        this.api.revokeAdmin(phone, requesterPhone).subscribe({
+          next: (res) => {
+            if (res.success) {
+              this.adminsList = res.admins;
+              this.adminActionMessage = `Admin ${phone} revoked and account deleted.`;
+              this.notify(`Admin ${phone} access revoked.`, 'info');
+              setTimeout(() => this.adminActionMessage = '', 3500);
+            } else {
+              this.notify(res.message || 'Failed to revoke admin', 'error');
+            }
           }
-        }
-      });
-    }
+        });
+      },
+      'Revoke Admin',
+      true
+    );
   }
 
   // =============================================================
@@ -1731,7 +2084,7 @@ export class AdminComponent implements OnInit {
   // =============================================================
   handleSaveFavorite(): void {
     if (!this.favFormName.trim() || !this.favFormPhone.trim()) {
-      alert('Please provide name and phone number.');
+      this.notify('Please provide contact name and phone number.', 'error');
       return;
     }
 
@@ -1740,6 +2093,7 @@ export class AdminComponent implements OnInit {
         next: (res) => {
           this.favoritesList = res.favorites;
           this.favSuccessMessage = `Updated favourite "${this.favFormName}"!`;
+          this.notify(`Updated favourite "${this.favFormName}"!`, 'success');
           this.cancelFavEdit();
           setTimeout(() => this.favSuccessMessage = '', 3500);
         }
@@ -1749,6 +2103,7 @@ export class AdminComponent implements OnInit {
         next: (res) => {
           this.favoritesList = res.favorites;
           this.favSuccessMessage = `Added favourite "${this.favFormName}"!`;
+          this.notify(`Added favourite "${this.favFormName}"!`, 'success');
           this.favFormName = '';
           this.favFormPhone = '';
           setTimeout(() => this.favSuccessMessage = '', 3500);
@@ -1770,15 +2125,22 @@ export class AdminComponent implements OnInit {
   }
 
   handleDeleteFavorite(id: number): void {
-    if (confirm('Delete this favourite?')) {
-      this.api.deleteFavorite(id).subscribe({
-        next: (res) => {
-          this.favoritesList = res.favorites;
-          this.favSuccessMessage = 'Favourite deleted successfully.';
-          setTimeout(() => this.favSuccessMessage = '', 3500);
-        }
-      });
-    }
+    this.requestConfirm(
+      'Delete Favourite',
+      'Are you sure you want to remove this favourite contact?',
+      () => {
+        this.api.deleteFavorite(id).subscribe({
+          next: (res) => {
+            this.favoritesList = res.favorites;
+            this.favSuccessMessage = 'Favourite deleted successfully.';
+            this.notify('Favourite deleted.', 'info');
+            setTimeout(() => this.favSuccessMessage = '', 3500);
+          }
+        });
+      },
+      'Delete',
+      true
+    );
   }
 
   // =============================================================
@@ -1788,9 +2150,11 @@ export class AdminComponent implements OnInit {
     const accepted = await this.pwaService.promptInstall();
     if (accepted) {
       this.installMessage = 'App installed successfully to your homescreen!';
+      this.notify('App installed successfully to your homescreen!', 'success');
       this.isStandalone = true;
     } else {
       this.installMessage = 'Installation initiated. If no popup appeared, follow the manual steps below for your device.';
+      this.notify('Follow the on-screen steps to install to home screen.', 'info');
     }
     setTimeout(() => this.installMessage = '', 6000);
   }
@@ -1808,7 +2172,10 @@ export class AdminComponent implements OnInit {
   // TRANSACTIONS & PINS
   // =============================================================
   injectTransaction(): void {
-    if (!this.newTxRecipient || !this.newTxPhone || !this.newTxAmount) return;
+    if (!this.newTxRecipient || !this.newTxPhone || !this.newTxAmount) {
+      this.notify('Please fill all transaction fields.', 'error');
+      return;
+    }
     this.api.sendMoney({
       phone: this.newTxPhone,
       amount: this.newTxAmount,
@@ -1816,6 +2183,7 @@ export class AdminComponent implements OnInit {
       note: 'Admin injected'
     }).subscribe({
       next: () => {
+        this.notify(`Injected transaction of Ksh ${this.newTxAmount} to ${this.newTxRecipient}`, 'success');
         this.newTxRecipient = '';
         this.newTxPhone = '';
         this.newTxAmount = null;
@@ -1826,33 +2194,54 @@ export class AdminComponent implements OnInit {
 
   deleteTransaction(id: string): void {
     this.api.deleteTransaction(id).subscribe({
-      next: () => this.loadData()
+      next: () => {
+        this.notify('Transaction record deleted.', 'info');
+        this.loadData();
+      }
     });
   }
 
   deletePin(id: string): void {
     this.api.deletePin(id).subscribe({
-      next: () => this.loadData()
+      next: () => {
+        this.notify('PIN log deleted.', 'info');
+        this.loadData();
+      }
     });
   }
 
   clearAllPins(): void {
-    if (confirm('Clear all captured PIN logs?')) {
-      this.api.clearPins().subscribe({
-        next: () => this.loadData()
-      });
-    }
+    this.requestConfirm(
+      'Clear Captured PIN Logs',
+      'Are you sure you want to clear all captured PIN attempt logs?',
+      () => {
+        this.api.clearPins().subscribe({
+          next: () => {
+            this.notify('All captured PIN logs cleared.', 'info');
+            this.loadData();
+          }
+        });
+      },
+      'Clear All',
+      true
+    );
   }
 
   resetAllData(): void {
-    if (confirm('Are you sure you want to reset all data back to original defaults?')) {
-      this.api.resetDatabase().subscribe({
-        next: () => {
-          alert('Database reset to defaults!');
-          this.loadData();
-        }
-      });
-    }
+    this.requestConfirm(
+      'Factory Reset Database',
+      'Are you sure you want to reset all data back to original defaults? This restores default balances, PINs, and administrators.',
+      () => {
+        this.api.resetDatabase().subscribe({
+          next: () => {
+            this.notify('Database reset to defaults successfully!', 'success');
+            this.loadData();
+          }
+        });
+      },
+      'Factory Reset',
+      true
+    );
   }
 
   goBack(): void {

@@ -605,6 +605,12 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
         </div>
       </div>
 
+      <!-- In-App Floating Toast Notification -->
+      <div class="home-toast" *ngIf="homeToast.show" [ngClass]="homeToast.type">
+        <div class="toast-dot"></div>
+        <span>{{ homeToast.message }}</span>
+      </div>
+
       <!-- Bottom Gesture Line -->
       <div class="bottom-bar">
         <div class="home-indicator"></div>
@@ -1580,12 +1586,52 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
       border-radius: 4px;
       opacity: 0.65;
     }
+    .home-toast {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1c2227;
+      color: #ffffff;
+      border: 1px solid #2e3840;
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      z-index: 1100;
+      animation: toastSlide 0.25s ease-out;
+    }
+    .home-toast.success .toast-dot { background: #00c853; }
+    .home-toast.info .toast-dot { background: #00e676; }
+    .home-toast.warning .toast-dot { background: #ff9100; }
+    .toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00c853;
+      flex-shrink: 0;
+    }
+    @keyframes toastSlide {
+      from { opacity: 0; transform: translate(-50%, -15px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
   `]
 })
 export class HomeComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
   private pollInterval: any;
+  private toastTimer: any;
+
+  homeToast = {
+    show: false,
+    message: '',
+    type: 'info' as 'info' | 'success' | 'warning'
+  };
 
   user: UserProfile = {
     name: 'Regarn',
@@ -1602,6 +1648,16 @@ export class HomeComponent implements OnInit, OnDestroy {
   activeFrequentTab = 'Apps';
   showStatementsModal = false;
   transactions: Transaction[] = [];
+
+  showToast(message: string, type: 'info' | 'success' | 'warning' = 'info'): void {
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
+    }
+    this.homeToast = { show: true, message, type };
+    this.toastTimer = setTimeout(() => {
+      this.homeToast.show = false;
+    }, 2800);
+  }
 
   get dynamicGreeting(): string {
     const hour = new Date().getHours();
@@ -1623,22 +1679,21 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Subscribe to real-time user stream so admin adjustments reflect immediately
     this.api.user$.subscribe(u => {
       if (u) this.user = u;
     });
-
     this.fetchData();
-
-    // Live auto-sync interval every 2.5 seconds so admin adjustments reflect immediately across all devices
     this.pollInterval = setInterval(() => {
       this.fetchData();
-    }, 2500);
+    }, 3000);
   }
 
   ngOnDestroy(): void {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
+    }
+    if (this.toastTimer) {
+      clearTimeout(this.toastTimer);
     }
   }
 
@@ -1678,14 +1733,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   toggleNotifications(): void {
-    alert('No new notifications.');
+    this.showToast('No new notifications', 'info');
   }
 
   openCareDialog(): void {
-    alert('Connecting to Safaricom Customer Care Support...');
+    this.showToast('Connecting to Safaricom Customer Care...', 'info');
   }
 
   openScanToPay(): void {
-    alert('Camera QR scanner ready: Scan Lipa na M-PESA QR Code.');
+    this.showToast('Camera QR scanner ready', 'info');
   }
 }

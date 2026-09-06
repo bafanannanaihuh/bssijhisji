@@ -141,7 +141,7 @@ export class InstallBannerComponent implements OnInit {
       localStorage.setItem('mpesa_pwa_installed', 'true');
       this.showBanner = false;
     } else {
-      alert('To install: tap the Chrome 3-dots menu (⋮) at the top right and select "Install app" or "Add to Home screen".');
+      // Silently mark as installed since user engaged with the prompt
       localStorage.setItem('mpesa_pwa_installed', 'true');
       this.showBanner = false;
     }
