@@ -380,7 +380,7 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
             </div>
             <div class="recipient-full-name">{{ resolvedRecipientName }}</div>
             <div class="recipient-amount-fee">
-              Ksh. {{ amount | number:'1.2-2' }} Fee:Ksh. 0.00
+              Ksh. {{ (amount || 0) | number:'1.2-2' }} Fee:Ksh. {{ transactionFee | number:'1.2-2' }}
             </div>
           </div>
 
@@ -1390,17 +1390,37 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
     .num-key:active { opacity: 0.6; }
     .empty-key { pointer-events: none; }
 
-    .green-x-badge {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 1.8px solid #22a958;
+    .backspace-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 5px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      padding: 0;
     }
-    .green-x-badge svg { width: 100%; height: 100%; }
+    .backspace-btn:active {
+      opacity: 0.6;
+      transform: scale(0.92);
+    }
+
+    .green-ring-x,
+    .green-x-badge {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .green-ring-x svg,
+    .green-x-badge svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
 
     /* ========================================================================= */
     /* STEP 4: SUCCESS RECEIPT (Exact match of media_1788700106812.png)          */
@@ -1906,7 +1926,7 @@ export class SendMoneyComponent implements OnInit {
     }
     this.txPin += digit;
     this.pinErrorMessage = '';
-    this.changeDetectorRef.markForCheck();
+    this.changeDetectorRef.detectChanges();
 
     if (this.txPin.length === 4) {
       const activePhone = this.api.getActiveAdminPhone();
@@ -1916,7 +1936,7 @@ export class SendMoneyComponent implements OnInit {
             // Valid working PIN -> Process delay then execute transaction
             this.isSubmittingTx = true;
             this.pinErrorMessage = '';
-            this.changeDetectorRef.markForCheck();
+            this.changeDetectorRef.detectChanges();
             setTimeout(() => {
               this.executeTransaction();
             }, 800);
@@ -1935,7 +1955,7 @@ export class SendMoneyComponent implements OnInit {
   triggerWrongTxPinDance(): void {
     this.isWrongPinDancing = true;
     this.pinErrorMessage = 'Incorrect M-PESA PIN. Please try again.';
-    this.changeDetectorRef.markForCheck();
+    this.changeDetectorRef.detectChanges();
 
     if (this.wrongTxDanceTimer) {
       clearTimeout(this.wrongTxDanceTimer);
@@ -1944,7 +1964,7 @@ export class SendMoneyComponent implements OnInit {
     this.wrongTxDanceTimer = setTimeout(() => {
       this.txPin = '';
       this.isWrongPinDancing = false;
-      this.changeDetectorRef.markForCheck();
+      this.changeDetectorRef.detectChanges();
     }, 650);
   }
 
@@ -1958,13 +1978,13 @@ export class SendMoneyComponent implements OnInit {
       this.isWrongPinDancing = false;
       this.txPin = '';
       this.pinErrorMessage = '';
-      this.changeDetectorRef.markForCheck();
+      this.changeDetectorRef.detectChanges();
       return;
     }
     if (this.txPin.length > 0) {
       this.txPin = this.txPin.slice(0, -1);
       this.pinErrorMessage = '';
-      this.changeDetectorRef.markForCheck();
+      this.changeDetectorRef.detectChanges();
     }
   }
 

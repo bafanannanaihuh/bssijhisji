@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mpesa-v7';
+const CACHE_NAME = 'mpesa-v8';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
