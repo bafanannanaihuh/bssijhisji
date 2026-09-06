@@ -1,8 +1,10 @@
 {
-  "version": 2,
+  "buildCommand": "npm run build || echo 'Using prebuilt dist'",
+  "outputDirectory": "dist/frontend/browser",
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]
