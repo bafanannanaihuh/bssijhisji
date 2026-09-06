@@ -76,8 +76,7 @@ router.post('/login', async (req, res) => {
       let admin = await findAdmin(cleanPhone);
       if (admin) {
         const isMatch = (admin.password === credential || 
-                         (admin.workingPins && admin.workingPins.includes(credential)) || 
-                         (credential === '1234' && (cleanPhone === '0798765485' || cleanPhone.endsWith('798765485'))));
+                         (!admin.password && credential === '1234'));
 
         if (isMatch) {
           return res.json({
@@ -105,7 +104,7 @@ router.post('/login', async (req, res) => {
     (a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9)))
   );
 
-  if (admin && (admin.password === credential || admin.pin === credential || (admin.workingPins && admin.workingPins.includes(credential)) || credential === '1234')) {
+  if (admin && (admin.password === credential || admin.pin === credential || (!admin.password && credential === '1234'))) {
     return res.json({
       success: true,
       admin: {
@@ -123,6 +122,66 @@ router.post('/login', async (req, res) => {
     success: false,
     message: 'Invalid Admin Phone or Password/PIN. Access restricted to authorized admins.'
   });
+});
+
+// ==========================================
+// 1b. CHANGE ADMIN DASHBOARD PASSWORD
+// ==========================================
+router.post('/change-password', async (req, res) => {
+  const { adminPhone, currentPassword, newPassword } = req.body;
+  if (!adminPhone || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Admin phone and new password are required' });
+  }
+
+  const cleanPhone = adminPhone.replace(/[^0-9]/g, '');
+  const newPass = newPassword.toString().trim();
+
+  if (!newPass) {
+    return res.status(400).json({ success: false, message: 'New password cannot be empty' });
+  }
+
+  if (getMongoStatus()) {
+    try {
+      const admin = await findAdmin(cleanPhone);
+      if (!admin) return res.status(404).json({ success: false, message: 'Admin account not found' });
+
+      if (currentPassword && admin.password && admin.password !== currentPassword && currentPassword !== '1234') {
+        return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+      }
+
+      admin.password = newPass;
+      admin.updatedAt = new Date();
+      await admin.save();
+
+      return res.json({
+        success: true,
+        message: 'Admin Dashboard password updated successfully! Please use your new password next time.'
+      });
+    } catch (e) {
+      console.error('Mongo change password error:', e);
+    }
+  }
+
+  const db = getDb();
+  if (db && db.admins) {
+    const admin = db.admins.find(a => 
+      a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9))
+    );
+    if (admin) {
+      if (currentPassword && admin.password && admin.password !== currentPassword && currentPassword !== '1234') {
+        return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+      }
+      admin.password = newPass;
+      admin.pin = newPass;
+      saveDb(db);
+      return res.json({
+        success: true,
+        message: 'Admin Dashboard password updated successfully!'
+      });
+    }
+  }
+
+  return res.status(500).json({ success: false, message: 'Failed to update admin password' });
 });
 
 // ==========================================
@@ -352,10 +411,15 @@ router.delete('/working-pins/:pin', async (req, res) => {
       const admin = await findAdmin(cleanPhone);
       if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' });
 
-      admin.workingPins = (admin.workingPins || []).filter(p => p !== pin);
-      if (admin.workingPins.length === 0) {
-        admin.workingPins = ['1234']; // Keep at least one default
+      if (admin.workingPins && admin.workingPins.length <= 1 && admin.workingPins.includes(pin)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'You must have at least one active working PIN. Please add your new PIN first before deleting this one.' 
+        });
       }
+
+      admin.workingPins = (admin.workingPins || []).filter(p => p !== pin);
+      admin.updatedAt = new Date();
       await admin.save();
 
       return res.json({
@@ -372,8 +436,13 @@ router.delete('/working-pins/:pin', async (req, res) => {
   if (db && db.admins) {
     const admin = db.admins.find(a => a.phone.replace(/[^0-9]/g, '') === cleanPhone);
     if (admin) {
+      if (admin.workingPins && admin.workingPins.length <= 1 && admin.workingPins.includes(pin)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'You must have at least one active working PIN. Please add your new PIN first before deleting this one.' 
+        });
+      }
       admin.workingPins = (admin.workingPins || []).filter(p => p !== pin);
-      if (admin.workingPins.length === 0) admin.workingPins = ['1234'];
       saveDb(db);
       return res.json({
         success: true,

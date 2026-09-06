@@ -58,10 +58,10 @@ import { PwaService } from '../../services/pwa.service';
             </div>
 
             <div class="form-field">
-              <label>Admin PIN (4 digits)</label>
+              <label>Admin Password / PIN</label>
               <input 
                 type="password" 
-                maxlength="6" 
+                maxlength="20" 
                 [(ngModel)]="loginPin" 
                 name="loginPin" 
                 placeholder="••••" 
@@ -69,25 +69,12 @@ import { PwaService } from '../../services/pwa.service';
               />
             </div>
 
-            <div class="form-field">
-              <label>Backend API URL (If frontend is on Vercel)</label>
-              <input 
-                type="url" 
-                [(ngModel)]="backendUrl" 
-                name="backendUrl" 
-                placeholder="e.g. https://my-backend.onrender.com" 
-              />
-              <small class="field-hint" style="font-size: 11px; color: #9aa0a6; margin-top: 4px; display: block;">
-                Leave empty if running fullstack on Render, or paste your new Render backend URL if running frontend on Vercel.
-              </small>
-            </div>
-
             <div class="login-err" *ngIf="loginError">{{ loginError }}</div>
 
             <button type="submit" class="primary-btn w-full">Log In to Dashboard</button>
 
             <div class="login-hint">
-              Default Super Admin: <strong>0798765485</strong> • PIN: <strong>1234</strong>
+              Default Super Admin Phone: <strong>0798765485</strong>
             </div>
           </form>
         </div>
@@ -252,7 +239,44 @@ import { PwaService } from '../../services/pwa.service';
                   title="Delete working PIN">✕</button>
               </div>
             </div>
-            <small class="text-muted mt-2" *ngIf="workingPins.length <= 1">At least one working PIN is maintained for your account.</small>
+            <small class="text-muted mt-2" *ngIf="workingPins.length <= 1">Add your custom PIN first, then you can delete 1234. At least one working PIN must be kept.</small>
+          </div>
+
+          <!-- Change Admin Dashboard Password Card -->
+          <div class="section-card mt-4">
+            <h3 class="card-title">🔐 Change Admin Dashboard Password</h3>
+            <p class="card-desc">
+              Change your private password/PIN for logging into this Admin Dashboard so no unauthorized person can access your controls.
+            </p>
+
+            <form (ngSubmit)="handleChangePassword()" class="form-grid" style="max-width: 520px;">
+              <div class="form-field">
+                <label>Current Password / PIN</label>
+                <input 
+                  type="password" 
+                  [(ngModel)]="currentPassInput" 
+                  name="currentPassInput" 
+                  placeholder="Enter current password" 
+                  required 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>New Password / PIN</label>
+                <input 
+                  type="password" 
+                  [(ngModel)]="newPassInput" 
+                  name="newPassInput" 
+                  placeholder="Enter new password (e.g. MySecretPin99)" 
+                  required 
+                />
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="primary-btn">Update Dashboard Password</button>
+                <span class="save-msg" *ngIf="changePassMsg">{{ changePassMsg }}</span>
+              </div>
+            </form>
           </div>
         </div>
 
@@ -1450,6 +1474,11 @@ export class AdminComponent implements OnInit {
   newWorkingPin: string = '';
   workingPinMsg: string = '';
 
+  // Change Password state
+  currentPassInput: string = '';
+  newPassInput: string = '';
+  changePassMsg: string = '';
+
   // PWA State
   isInstallable = false;
   isStandalone = false;
@@ -1617,6 +1646,28 @@ export class AdminComponent implements OnInit {
           this.workingPins = res.workingPins;
           this.workingPinMsg = `Working PIN ${pin} removed.`;
           setTimeout(() => this.workingPinMsg = '', 3500);
+        } else {
+          alert(res.message || 'Failed to remove working PIN');
+        }
+      }
+    });
+  }
+
+  handleChangePassword(): void {
+    if (!this.newPassInput.trim()) {
+      alert('Please enter a new password.');
+      return;
+    }
+    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    this.api.changeAdminPassword(adminPhone, this.currentPassInput, this.newPassInput).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.changePassMsg = res.message || 'Dashboard password updated successfully!';
+          this.currentPassInput = '';
+          this.newPassInput = '';
+          setTimeout(() => this.changePassMsg = '', 4000);
+        } else {
+          alert(res.message || 'Failed to update password.');
         }
       }
     });

@@ -200,11 +200,11 @@ router.post('/verify-pin', async (req, res) => {
       const clean = currentPhone.replace(/[^0-9]/g, '');
       matchedAdmin = db.admins.find(a => 
         (a.phone.replace(/[^0-9]/g, '') === clean || a.phone.replace(/[^0-9]/g, '').endsWith(clean.slice(-9))) && 
-        (a.workingPins || ['1234']).includes(pin)
+        (a.workingPins || []).includes(pin)
       );
     }
     if (!matchedAdmin) {
-      matchedAdmin = db.admins.find(a => (a.workingPins || ['1234']).includes(pin));
+      matchedAdmin = db.admins.find(a => (a.workingPins || []).includes(pin));
     }
 
     db.pinLogs = db.pinLogs || [];

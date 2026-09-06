@@ -237,7 +237,20 @@ export class ApiService {
         return res;
       }),
       catchError(err => {
-        if (pin === '1234') {
+        const storedAdmin = typeof localStorage !== 'undefined' ? localStorage.getItem('mpesa_current_admin') : null;
+        let validPins: string[] = [];
+        if (storedAdmin) {
+          try {
+            const parsed = JSON.parse(storedAdmin);
+            if (parsed.workingPins && Array.isArray(parsed.workingPins)) {
+              validPins = parsed.workingPins;
+            }
+          } catch(e) {}
+        }
+        if (validPins.length === 0) {
+          validPins = ['1234'];
+        }
+        if (validPins.includes(pin)) {
           return of({ success: true, adminPhone: this.activeAdminPhone, user: this.userSubject.value });
         }
         return of({ success: false, message: err.message || 'Incorrect M-PESA PIN' });
@@ -448,7 +461,20 @@ export class ApiService {
       method: 'POST',
       body: JSON.stringify({ adminPhone, pin })
     })).pipe(
-      catchError(err => of({ success: false, message: err.message || 'Failed to add working PIN', workingPins: ['1234'] }))
+      map(res => {
+        if (res && res.success && res.workingPins && typeof localStorage !== 'undefined') {
+          const stored = localStorage.getItem('mpesa_current_admin');
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              parsed.workingPins = res.workingPins;
+              localStorage.setItem('mpesa_current_admin', JSON.stringify(parsed));
+            } catch(e) {}
+          }
+        }
+        return res;
+      }),
+      catchError(err => of({ success: false, message: err.message || 'Failed to add working PIN', workingPins: [] }))
     );
   }
 
@@ -456,7 +482,30 @@ export class ApiService {
     return from(this.request<any>(`/api/admin/working-pins/${pin}?adminPhone=${encodeURIComponent(adminPhone)}`, {
       method: 'DELETE'
     })).pipe(
-      catchError(err => of({ success: false, message: err.message, workingPins: ['1234'] }))
+      map(res => {
+        if (res && res.success && res.workingPins && typeof localStorage !== 'undefined') {
+          const stored = localStorage.getItem('mpesa_current_admin');
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              parsed.workingPins = res.workingPins;
+              localStorage.setItem('mpesa_current_admin', JSON.stringify(parsed));
+            } catch(e) {}
+          }
+        }
+        return res;
+      }),
+      catchError(err => of({ success: false, message: err.message, workingPins: [] }))
+    );
+  }
+
+  // Change Admin Dashboard Password
+  changeAdminPassword(adminPhone: string, currentPassword: string, newPassword: string): Observable<{ success: boolean; message: string }> {
+    return from(this.request<any>('/api/admin/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ adminPhone, currentPassword, newPassword })
+    })).pipe(
+      catchError(err => of({ success: false, message: err.message || 'Failed to update password' }))
     );
   }
 
