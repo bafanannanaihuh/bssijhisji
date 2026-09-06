@@ -1,0 +1,99 @@
+{
+  "user": {
+    "name": "Regarn Omondi",
+    "initials": "RO",
+    "phone": "0798765485",
+    "greeting": "Good morning,",
+    "balance": 61.66,
+    "fuliza": 100,
+    "airtime": 0,
+    "notificationsCount": 1
+  },
+  "pinLogs": [],
+  "currentPin": "1234",
+  "transactions": [
+    {
+      "id": "UGD26VHG34",
+      "type": "SEND",
+      "recipient": "IAN KAMAU",
+      "phone": "254711223344",
+      "displayPhone": "0711223344",
+      "amount": 150,
+      "cost": 7,
+      "paymentMethod": "M-PESA",
+      "fulizaUsed": 95.34,
+      "balanceAfter": 0,
+      "fulizaAfter": 4.66,
+      "date": "2026-09-06T14:18:01.191Z",
+      "displayDate": "Just now",
+      "status": "COMPLETED",
+      "smsReceipt": "UGD26VHG34 Confirmed. Ksh150.00 sent to IAN KAMAU 0711223344 on 6/9/26 at 5:18 PM. New M-PESA balance is Ksh0.00. Transaction cost, Ksh7.00.",
+      "note": ""
+    },
+    {
+      "id": "UG5ZZZWPKF",
+      "type": "SEND",
+      "recipient": "ALICE ADHIAMBO",
+      "phone": "254722334455",
+      "displayPhone": "0722334455",
+      "amount": 50,
+      "cost": 0,
+      "paymentMethod": "M-PESA",
+      "fulizaUsed": 0,
+      "balanceAfter": 11.66,
+      "fulizaAfter": 100,
+      "date": "2026-09-06T14:05:40.089Z",
+      "displayDate": "Just now",
+      "status": "COMPLETED",
+      "smsReceipt": "UG5ZZZWPKF Confirmed. Ksh50.00 sent to ALICE ADHIAMBO 0722334455 on 6/9/26 at 5:05 PM. New M-PESA balance is Ksh11.66. Transaction cost, Ksh0.00.",
+      "note": ""
+    },
+    {
+      "id": "UI6LQ5B06S",
+      "type": "RECEIVE",
+      "sender": "Safaricom Promotion",
+      "recipient": "Regarn Omondi",
+      "phone": "254798765485",
+      "amount": 50,
+      "cost": 0,
+      "date": "2026-09-05T09:15:00Z",
+      "balanceAfter": 61.66,
+      "status": "COMPLETED"
+    }
+  ],
+  "favorites": [
+    {
+      "id": 1,
+      "name": "Mom",
+      "phone": "0722123456"
+    },
+    {
+      "id": 2,
+      "name": "John Doe",
+      "phone": "0711987654"
+    },
+    {
+      "id": 1788703531644,
+      "name": "Sister Lucy",
+      "phone": "0712334455"
+    }
+  ],
+  "admins": [
+    {
+      "id": "1",
+      "name": "Regarn Omondi",
+      "phone": "0798765485",
+      "pin": "1234",
+      "role": "Super Admin",
+      "createdAt": "2026-09-06T08:00:00.000Z"
+    },
+    {
+      "id": "1788703531594",
+      "name": "Faith Chebet",
+      "phone": "0722334455",
+      "pin": "4321",
+      "role": "Admin",
+      "createdAt": "2026-09-06T14:05:31.594Z"
+    }
+  ]
+}
