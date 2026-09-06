@@ -125,56 +125,56 @@ import { ApiService, UserProfile } from '../../services/api.service';
       height: 100%;
       min-height: 100vh;
       min-height: 100dvh;
-      background-color: #0b0c0e;
+      background-color: #000000;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       color: #ffffff;
-      padding: 24px 20px 10px 20px;
+      padding: calc(env(safe-area-inset-top, 0px) + 20px) 24px calc(env(safe-area-inset-bottom, 0px) + 12px) 24px;
       user-select: none;
       position: relative;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     .top-title-bar {
       text-align: center;
-      margin-top: 14px;
+      margin-top: 10px;
     }
 
     .page-title {
-      font-size: 16.5px;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 500;
       color: #ffffff;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.25px;
     }
 
     .user-profile-section {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: 18px;
-      margin-bottom: 6px;
+      margin-top: 20px;
+      margin-bottom: 4px;
       cursor: pointer;
     }
 
     .avatar-circle {
-      width: 64px;
-      height: 64px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
-      background: #e23838;
+      background: #e53935;
       color: #ffffff;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       letter-spacing: 0.5px;
       margin-bottom: 12px;
-      box-shadow: 0 4px 14px rgba(226, 56, 56, 0.35);
     }
 
     .user-name {
-      font-size: 18px;
-      font-weight: 700;
+      font-size: 17.5px;
+      font-weight: 600;
       color: #ffffff;
       letter-spacing: 0.2px;
       margin-bottom: 4px;
@@ -182,9 +182,9 @@ import { ApiService, UserProfile } from '../../services/api.service';
 
     .user-phone {
       font-size: 13.5px;
-      color: #9aa0a6;
+      color: #8e959b;
       font-weight: 400;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
     }
 
     .bundles-notice-pill {
@@ -192,18 +192,18 @@ import { ApiService, UserProfile } from '../../services/api.service';
       align-items: center;
       justify-content: center;
       gap: 10px;
-      background: rgba(22, 45, 29, 0.85);
-      border: 1px solid rgba(0, 200, 83, 0.32);
-      padding: 7px 18px;
+      background: #14281c;
+      border: 1px solid rgba(0, 200, 83, 0.35);
+      padding: 7px 16px;
       border-radius: 20px;
-      margin: 16px auto 26px auto;
-      max-width: 340px;
+      margin: 18px auto 34px auto;
+      max-width: 330px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
     }
 
     .notice-icon {
-      width: 19px;
-      height: 19px;
+      width: 20px;
+      height: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -227,15 +227,15 @@ import { ApiService, UserProfile } from '../../services/api.service';
     .pin-boxes-container {
       display: flex;
       justify-content: center;
-      gap: 15px;
-      margin: 8px 0 32px 0;
+      gap: 16px;
+      margin: 0 auto 38px auto;
     }
 
     .pin-box {
-      width: 56px;
-      height: 56px;
+      width: 52px;
+      height: 52px;
       border-radius: 12px;
-      border: 1.6px solid rgba(255, 255, 255, 0.45);
+      border: 1.5px solid rgba(255, 255, 255, 0.5);
       background: transparent;
       display: flex;
       align-items: center;
@@ -244,7 +244,7 @@ import { ApiService, UserProfile } from '../../services/api.service';
     }
 
     .pin-box.filled {
-      border-color: rgba(255, 255, 255, 0.85);
+      border-color: rgba(255, 255, 255, 0.88);
     }
 
     .pin-dot {
@@ -252,29 +252,29 @@ import { ApiService, UserProfile } from '../../services/api.service';
       height: 14px;
       border-radius: 50%;
       background-color: #ffffff;
-      box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+      box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
     }
 
     /* Wrong PIN Red Dancing Box Animation */
     @keyframes redBoxDance {
       0% { transform: translateX(0); }
-      15% { transform: translateX(-12px) rotate(-1deg); }
-      30% { transform: translateX(11px) rotate(1deg); }
+      15% { transform: translateX(-12px) rotate(-1.5deg); }
+      30% { transform: translateX(11px) rotate(1.5deg); }
       45% { transform: translateX(-9px) rotate(-1deg); }
-      60% { transform: translateX(7px) rotate(0.5deg); }
+      60% { transform: translateX(7px) rotate(0.8deg); }
       75% { transform: translateX(-4px); }
       90% { transform: translateX(2px); }
       100% { transform: translateX(0); }
     }
 
     .pin-boxes-container.wrong-dance {
-      animation: redBoxDance 0.62s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+      animation: redBoxDance 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
     }
 
     .pin-boxes-container.wrong-dance .pin-box {
       border-color: #ff3333 !important;
-      background: rgba(255, 51, 51, 0.14) !important;
-      box-shadow: 0 0 14px rgba(255, 51, 51, 0.5) !important;
+      background: rgba(255, 51, 51, 0.15) !important;
+      box-shadow: 0 0 16px rgba(255, 51, 51, 0.5) !important;
     }
 
     .pin-boxes-container.wrong-dance .pin-dot {
@@ -288,7 +288,7 @@ import { ApiService, UserProfile } from '../../services/api.service';
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
     .keypad-wrapper.disabled-keypad {
@@ -303,12 +303,12 @@ import { ApiService, UserProfile } from '../../services/api.service';
 
     .num-key {
       flex: 1;
-      height: 58px;
+      height: 64px;
       background: transparent;
       border: none;
       color: #ffffff;
-      font-size: 28px;
-      font-weight: 400;
+      font-size: 32px;
+      font-weight: 350;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -316,11 +316,11 @@ import { ApiService, UserProfile } from '../../services/api.service';
       user-select: none;
       -webkit-tap-highlight-color: transparent;
       border-radius: 50%;
-      transition: background 0.15s ease;
+      transition: background 0.12s ease;
     }
 
     .num-key:active {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     .empty-key {
@@ -335,8 +335,8 @@ import { ApiService, UserProfile } from '../../services/api.service';
     }
 
     .green-ring-x {
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
