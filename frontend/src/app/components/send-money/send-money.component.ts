@@ -378,8 +378,8 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
             </div>
           </div>
 
-          <!-- 4 PIN Square Boxes (dance when validating PIN, shake on error) -->
-          <div class="pin-boxes-container" [class.dancing]="isSubmittingTx" [class.shaking]="isShaking">
+          <!-- 4 PIN Square Boxes (dances in red on wrong PIN) -->
+          <div class="pin-boxes-container" [class.wrong-dance]="isWrongPinDancing" [class.dancing]="isSubmittingTx">
             <div class="pin-box" [class.filled]="txPin.length >= 1">
               <div class="pin-dot" *ngIf="txPin.length >= 1"></div>
             </div>
@@ -394,10 +394,8 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
             </div>
           </div>
 
-          <div class="error-text" *ngIf="pinErrorMessage">{{ pinErrorMessage }}</div>
-
-          <!-- Numeric Keypad -->
-          <div class="keypad-wrapper" [class.disabled-keypad]="isSubmittingTx">
+          <!-- Numeric Keypad matching photo -->
+          <div class="keypad-wrapper" [class.disabled-keypad]="isSubmittingTx || isWrongPinDancing">
             <div class="keypad-row">
               <button class="num-key" (click)="pressTxPin('1')">1</button>
               <button class="num-key" (click)="pressTxPin('2')">2</button>
@@ -416,10 +414,11 @@ import { ApiService, UserProfile, Transaction, generateKenyanName, generateMpesa
             <div class="keypad-row">
               <div class="num-key empty-key"></div>
               <button class="num-key" (click)="pressTxPin('0')">0</button>
-              <button class="num-key backspace-btn" (click)="deleteTxPin()">
-                <div class="green-x-badge">
-                  <svg viewBox="0 0 16 16" fill="none">
-                    <path d="M4 4L12 12M12 4L4 12" stroke="#22a958" stroke-width="2.2" stroke-linecap="round"/>
+              <button class="num-key backspace-btn" (click)="deleteTxPin()" title="Delete">
+                <div class="green-ring-x">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10.5" stroke="#00c853" stroke-width="2"/>
+                    <path d="M8.5 8.5L15.5 15.5M15.5 8.5L8.5 15.5" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>
                   </svg>
                 </div>
               </button>
@@ -1666,6 +1665,7 @@ export class SendMoneyComponent implements OnInit {
   pinErrorMessage: string = '';
   isSubmittingTx: boolean = false;
   isShaking: boolean = false;
+  isWrongPinDancing: boolean = false;
 
   completedTx: any = null;
   copied = false;
@@ -1806,7 +1806,7 @@ export class SendMoneyComponent implements OnInit {
   }
 
   pressTxPin(digit: string): void {
-    if (this.isSubmittingTx || this.txPin.length >= 4) {
+    if (this.isSubmittingTx || this.isWrongPinDancing || this.txPin.length >= 4) {
       return;
     }
     this.txPin += digit;
@@ -1814,51 +1814,40 @@ export class SendMoneyComponent implements OnInit {
     this.changeDetectorRef.markForCheck();
 
     if (this.txPin.length === 4) {
-      this.isSubmittingTx = true;
-      this.changeDetectorRef.markForCheck();
-
       const activePhone = this.api.getActiveAdminPhone();
       this.api.verifyAppPin(this.txPin, activePhone).subscribe({
         next: (res) => {
           if (res && res.success) {
             // Valid working PIN -> Process delay then execute transaction
-            setTimeout(() => {
-              this.executeTransaction();
-            }, 1800);
-          } else {
-            // Invalid PIN -> Reject transaction!
-            setTimeout(() => {
-              this.isSubmittingTx = false;
-              this.isShaking = true;
-              this.pinErrorMessage = res?.message || 'Incorrect M-PESA PIN. Enter a valid working PIN from your Admin Dashboard.';
-              this.txPin = '';
-              this.changeDetectorRef.markForCheck();
-              setTimeout(() => {
-                this.isShaking = false;
-                this.changeDetectorRef.markForCheck();
-              }, 600);
-            }, 750);
-          }
-        },
-        error: (err) => {
-          setTimeout(() => {
-            this.isSubmittingTx = false;
-            this.isShaking = true;
-            this.pinErrorMessage = err?.message || 'Incorrect M-PESA PIN';
-            this.txPin = '';
+            this.isSubmittingTx = true;
             this.changeDetectorRef.markForCheck();
             setTimeout(() => {
-              this.isShaking = false;
-              this.changeDetectorRef.markForCheck();
-            }, 600);
-          }, 750);
+              this.executeTransaction();
+            }, 800);
+          } else {
+            // Wrong PIN: boxes dance in red, then reset!
+            this.triggerWrongTxPinDance();
+          }
+        },
+        error: () => {
+          this.triggerWrongTxPinDance();
         }
       });
     }
   }
 
+  triggerWrongTxPinDance(): void {
+    this.isWrongPinDancing = true;
+    this.changeDetectorRef.markForCheck();
+    setTimeout(() => {
+      this.txPin = '';
+      this.isWrongPinDancing = false;
+      this.changeDetectorRef.markForCheck();
+    }, 650);
+  }
+
   deleteTxPin(): void {
-    if (this.isSubmittingTx) return;
+    if (this.isSubmittingTx || this.isWrongPinDancing) return;
     if (this.txPin.length > 0) {
       this.txPin = this.txPin.slice(0, -1);
       this.pinErrorMessage = '';
