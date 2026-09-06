@@ -214,14 +214,10 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
               <span class="action-label">Withdraw<br/>Money</span>
             </div>
 
-            <!-- 4. Pochi Wallet (Exact dual-ribbon emblem from photo) -->
+            <!-- 4. Pochi Wallet (Exact emblem from photo) -->
             <div class="action-item">
               <div class="action-circle pochi-circle">
-                <svg class="pochi-badge-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="22" cy="22" r="12.5" fill="#2db34a"/>
-                  <path d="M13.5 24 C15 21.8 17.5 21.2 19 22.2 C17.2 23.4 15.8 24.8 13.5 24 Z" fill="#ffffff"/>
-                  <path d="M17.8 22.6 C19 19 21.5 17 25.5 17.5 C27.5 17.8 28.5 18.5 29 19.5 C28.5 21.5 26 23.2 23 24.2 C20.5 24.8 18.8 24.2 17.8 22.6 Z" fill="#e12b37"/>
-                </svg>
+                <img src="/icons/pochi-wallet.png" alt="Pochi Wallet" class="pochi-img" />
               </div>
               <span class="action-label">Pochi<br/>Wallet</span>
             </div>
@@ -1042,12 +1038,17 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
       height: 20px;
     }
     .action-circle.pochi-circle {
-      background: #303438;
-      border: 1px solid #3d4247;
+      background: transparent;
+      border: none;
+      padding: 0;
+      overflow: hidden;
     }
-    .action-circle .pochi-badge-svg {
-      width: 44px;
-      height: 44px;
+    .pochi-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      display: block;
+      object-fit: cover;
     }
     .action-label {
       font-size: 11px;
