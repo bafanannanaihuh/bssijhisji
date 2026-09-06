@@ -1671,6 +1671,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   lockApp(): void {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('mpesa_pin_authenticated');
+    }
     this.router.navigate(['/pin']);
   }
 
@@ -1679,6 +1682,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mpesa_pin_authenticated') !== 'true') {
+      this.router.navigate(['/pin']);
+      return;
+    }
     this.api.user$.subscribe(u => {
       if (u) this.user = u;
     });

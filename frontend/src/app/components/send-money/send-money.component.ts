@@ -1694,6 +1694,11 @@ export class SendMoneyComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('mpesa_pin_authenticated') !== 'true') {
+      this.router.navigate(['/pin']);
+      return;
+    }
+
     this.api.user$.subscribe(u => {
       if (u) this.user = u;
     });

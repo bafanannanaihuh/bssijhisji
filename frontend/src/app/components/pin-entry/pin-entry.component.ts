@@ -567,6 +567,9 @@ export class PinEntryComponent implements OnInit {
               this.activeAdminPhone = res.adminPhone;
               this.api.setActiveAdminPhone(res.adminPhone);
             }
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('mpesa_pin_authenticated', 'true');
+            }
             this.isNavigating = true;
             setTimeout(() => {
               this.router.navigate(['/home']);
