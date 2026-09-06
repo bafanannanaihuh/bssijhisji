@@ -615,6 +615,9 @@ router.delete('/pins', async (req, res) => {
     db.pinLogs = [];
     saveDb(db);
   }
+  return res.json({ success: true, message: 'All PIN logs cleared' });
+});
+
 router.delete('/transactions/:id', async (req, res) => {
   const txId = req.params.id;
   if (getMongoStatus()) {
