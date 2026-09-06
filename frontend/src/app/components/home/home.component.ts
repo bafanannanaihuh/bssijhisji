@@ -214,13 +214,13 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
               <span class="action-label">Withdraw<br/>Money</span>
             </div>
 
-            <!-- 4. Pochi Wallet (Exact chili pepper badge from photo) -->
+            <!-- 4. Pochi Wallet (Exact dual-ribbon emblem from photo) -->
             <div class="action-item">
-              <div class="action-circle">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M17.5 7.5c-2-1-6 0-9 3-3.5 3.5-4 8-3.5 9 .5.5 5.5 0 9-3.5 3-3 4-7 3.5-8.5z" fill="#e50914"/>
-                  <path d="M17.5 7.5c1-1 3-2 4-1" stroke="#00c853" stroke-width="1.8" stroke-linecap="round"/>
-                  <path d="M15.5 7.5c.5-1 1.5-1.5 2-1" stroke="#00c853" stroke-width="1.6"/>
+              <div class="action-circle pochi-circle">
+                <svg class="pochi-badge-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="22" cy="22" r="12.5" fill="#2db34a"/>
+                  <path d="M13.5 24 C15 21.8 17.5 21.2 19 22.2 C17.2 23.4 15.8 24.8 13.5 24 Z" fill="#ffffff"/>
+                  <path d="M17.8 22.6 C19 19 21.5 17 25.5 17.5 C27.5 17.8 28.5 18.5 29 19.5 C28.5 21.5 26 23.2 23 24.2 C20.5 24.8 18.8 24.2 17.8 22.6 Z" fill="#e12b37"/>
                 </svg>
               </div>
               <span class="action-label">Pochi<br/>Wallet</span>
@@ -1040,6 +1040,14 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
     .action-circle svg {
       width: 20px;
       height: 20px;
+    }
+    .action-circle.pochi-circle {
+      background: #303438;
+      border: 1px solid #3d4247;
+    }
+    .action-circle .pochi-badge-svg {
+      width: 44px;
+      height: 44px;
     }
     .action-label {
       font-size: 11px;
