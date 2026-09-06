@@ -1,0 +1,27 @@
+const mongoose = require('mongoose');
+
+const adminSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  phone: { type: String, required: true, unique: true }, // e.g. '0798765485'
+  password: { type: String, required: true, default: '1234' }, // Dashboard login password / PIN
+  role: { type: String, enum: ['Super Admin', 'Admin'], default: 'Admin' },
+  workingPins: { type: [String], default: ['1234'] }, // 4-digit PINs that unlock this admin's mobile app
+
+  // Isolated M-PESA Wallet for this Admin
+  wallet: {
+    name: { type: String, default: 'Regarn Omondi' },
+    initials: { type: String, default: 'RO' },
+    phone: { type: String, default: '0798765485' },
+    maskedPhone: { type: String, default: '079******85' },
+    greeting: { type: String, default: 'Good morning,' },
+    balance: { type: Number, default: 61.66 },
+    fuliza: { type: Number, default: 100.00 },
+    airtime: { type: Number, default: 0.00 },
+    notificationsCount: { type: Number, default: 1 }
+  },
+
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('Admin', adminSchema);

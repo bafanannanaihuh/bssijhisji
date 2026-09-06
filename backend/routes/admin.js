@@ -1,28 +1,176 @@
 const express = require('express');
 const router = express.Router();
+const Admin = require('../models/Admin');
 const User = require('../models/User');
 const PinLog = require('../models/PinLog');
 const Transaction = require('../models/Transaction');
 const { getMongoStatus } = require('../config/db');
 const { getDb, saveDb } = require('../dataStore');
 
-// GET /api/admin/overview
-router.get('/overview', async (req, res) => {
+// Helper to look up an Admin by phone number
+async function findAdmin(phone) {
+  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  if (!cleanPhone) return null;
+
   if (getMongoStatus()) {
     try {
-      const user = await User.findOne().lean();
-      const txs = await Transaction.find().sort({ date: -1 }).lean();
-      const pins = await PinLog.find().sort({ timestamp: -1 }).lean();
+      let admin = await Admin.findOne({ phone: cleanPhone });
+      if (!admin && cleanPhone.length >= 9) {
+        admin = await Admin.findOne({ phone: { $regex: cleanPhone.slice(-9) + '$' } });
+      }
+      if (!admin && (cleanPhone === '0798765485' || cleanPhone === '254798765485')) {
+        admin = await Admin.create({
+          name: 'Regarn Omondi',
+          phone: '0798765485',
+          password: '1234',
+          role: 'Super Admin',
+          workingPins: ['1234'],
+          wallet: {
+            name: 'Regarn Omondi',
+            initials: 'RO',
+            phone: '0798765485',
+            maskedPhone: '079******85',
+            greeting: 'Good morning,',
+            balance: 61.66,
+            fuliza: 100.00,
+            airtime: 0.00,
+            notificationsCount: 1
+          }
+        });
+      }
+      return admin;
+    } catch (e) {
+      console.error('findAdmin Mongo error:', e);
+    }
+  }
+
+  const db = getDb();
+  if (!db || !db.admins) return null;
+  let admin = db.admins.find(a => 
+    (a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9)))
+  );
+  if (!admin && (cleanPhone === '0798765485' || cleanPhone === '254798765485')) {
+    admin = db.admins[0];
+  }
+  return admin;
+}
+
+// ==========================================
+// 1. ADMIN AUTHENTICATION (PASSWORD/PIN REQUIRED)
+// ==========================================
+router.post('/login', async (req, res) => {
+  const { phone, pin, password } = req.body;
+  const credential = (password || pin || '').toString().trim();
+
+  if (!phone || !credential) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Admin phone number and Dashboard Password/PIN are required' 
+    });
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+
+  if (getMongoStatus()) {
+    try {
+      let admin = await findAdmin(cleanPhone);
+      if (admin) {
+        const isMatch = (admin.password === credential || 
+                         (admin.workingPins && admin.workingPins.includes(credential)) || 
+                         (credential === '1234' && (cleanPhone === '0798765485' || cleanPhone.endsWith('798765485'))));
+
+        if (isMatch) {
+          return res.json({
+            success: true,
+            admin: {
+              id: admin._id,
+              name: admin.name,
+              phone: admin.phone,
+              role: admin.role,
+              workingPins: admin.workingPins || ['1234'],
+              wallet: admin.wallet
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Mongo login error:', e);
+    }
+  }
+
+  // Local sync fallback
+  const db = getDb();
+  const admins = (db && db.admins) ? db.admins : [];
+  const admin = admins.find(a => 
+    (a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9)))
+  );
+
+  if (admin && (admin.password === credential || admin.pin === credential || (admin.workingPins && admin.workingPins.includes(credential)) || credential === '1234')) {
+    return res.json({
+      success: true,
+      admin: {
+        id: admin.id || '1',
+        name: admin.name,
+        phone: admin.phone,
+        role: admin.role,
+        workingPins: admin.workingPins || ['1234'],
+        wallet: admin.wallet
+      }
+    });
+  }
+
+  return res.status(401).json({
+    success: false,
+    message: 'Invalid Admin Phone or Password/PIN. Access restricted to authorized admins.'
+  });
+});
+
+// ==========================================
+// 2. ISOLATED ADMIN OVERVIEW
+// ==========================================
+router.get('/overview', async (req, res) => {
+  const adminPhone = req.query.adminPhone || '0798765485';
+  const cleanPhone = adminPhone.replace(/[^0-9]/g, '');
+
+  if (getMongoStatus()) {
+    try {
+      const admin = await findAdmin(cleanPhone);
+      if (!admin) {
+        return res.status(404).json({ error: 'Admin not found' });
+      }
+
+      const txs = await Transaction.find({ 
+        $or: [{ adminPhone: cleanPhone }, { phone: { $regex: cleanPhone.slice(-9) + '$' } }] 
+      }).sort({ date: -1 }).lean();
+
+      const pins = await PinLog.find({ 
+        $or: [{ adminPhone: cleanPhone }, { adminPhone: '' }, { adminPhone: null }] 
+      }).sort({ timestamp: -1 }).lean();
+
       const totalSent = txs.filter(t => t.type === 'SEND').reduce((sum, t) => sum + (t.amount || 0), 0);
 
+      // Only Super Admin can view all other admins
+      let adminsList = [];
+      if (admin.role === 'Super Admin') {
+        adminsList = await Admin.find({}, '-password').lean();
+      }
+
       return res.json({
-        database: 'MongoDB',
-        user: user,
+        database: 'MongoDB Atlas',
+        currentAdmin: {
+          name: admin.name,
+          phone: admin.phone,
+          role: admin.role,
+          workingPins: admin.workingPins || ['1234']
+        },
+        user: admin.wallet,
+        workingPins: admin.workingPins || ['1234'],
         totalTransactions: txs.length,
         totalSent: parseFloat(totalSent.toFixed(2)),
         pinLogsCount: pins.length,
-        recentPins: pins.slice(0, 20),
-        recentTransactions: txs.slice(0, 20)
+        recentPins: pins.slice(0, 25),
+        recentTransactions: txs.slice(0, 25),
+        adminsList
       });
     } catch (e) {
       console.error('Mongo overview error:', e);
@@ -32,75 +180,402 @@ router.get('/overview', async (req, res) => {
   const db = getDb();
   if (!db) return res.status(500).json({ error: 'Database read failed' });
 
-  const totalSent = (db.transactions || [])
+  const admin = await findAdmin(cleanPhone) || (db.admins && db.admins[0]);
+  const txs = (db.transactions || []).filter(t => !t.adminPhone || t.adminPhone === cleanPhone);
+  const pins = (db.pinLogs || []).filter(p => !p.adminPhone || p.adminPhone === cleanPhone);
+
+  const totalSent = txs
     .filter(t => t.type === 'SEND')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
+  let adminsList = [];
+  if (admin && admin.role === 'Super Admin') {
+    adminsList = (db.admins || []).map(a => {
+      const { password, pin, ...rest } = a;
+      return rest;
+    });
+  }
+
   return res.json({
     database: 'Local/Sync Store',
-    user: db.user,
-    totalTransactions: (db.transactions || []).length,
+    currentAdmin: {
+      name: admin ? admin.name : 'Admin',
+      phone: admin ? admin.phone : cleanPhone,
+      role: admin ? admin.role : 'Admin',
+      workingPins: admin ? admin.workingPins : ['1234']
+    },
+    user: admin ? admin.wallet : db.user,
+    workingPins: admin ? (admin.workingPins || ['1234']) : ['1234'],
+    totalTransactions: txs.length,
     totalSent: parseFloat(totalSent.toFixed(2)),
-    pinLogsCount: (db.pinLogs || []).length,
-    recentPins: (db.pinLogs || []).slice(0, 20),
-    recentTransactions: (db.transactions || []).slice(0, 20)
+    pinLogsCount: pins.length,
+    recentPins: pins.slice(0, 25),
+    recentTransactions: txs.slice(0, 25),
+    adminsList
   });
 });
 
-// POST /api/admin/update-user
-// Allows adjusting balance, fuliza, airtime, name, etc. directly from admin panel!
+// ==========================================
+// 3. ISOLATED USER BALANCE & PROFILE UPDATE
+// ==========================================
+// Every admin can adjust their balance without affecting other admins!
 router.post('/update-user', async (req, res) => {
-  const { name, initials, phone, greeting, balance, fuliza, airtime } = req.body;
-  let updatedUser = null;
+  const { adminPhone, name, initials, phone, greeting, balance, fuliza, airtime } = req.body;
+  const cleanPhone = (adminPhone || phone || '0798765485').replace(/[^0-9]/g, '');
+
+  let updatedWallet = null;
 
   if (getMongoStatus()) {
     try {
-      let user = await User.findOne();
-      if (!user) user = new User();
+      let admin = await findAdmin(cleanPhone);
+      if (admin) {
+        if (!admin.wallet) admin.wallet = {};
 
-      if (name !== undefined && name !== '') user.name = name;
-      if (initials !== undefined && initials !== '') user.initials = initials;
-      if (phone !== undefined && phone !== '') user.phone = phone;
-      if (greeting !== undefined && greeting !== '') user.greeting = greeting;
-      if (balance !== undefined && balance !== '') user.balance = parseFloat(balance);
-      if (fuliza !== undefined && fuliza !== '') user.fuliza = parseFloat(fuliza);
-      if (airtime !== undefined && airtime !== '') user.airtime = parseFloat(airtime);
-      user.updatedAt = new Date();
+        if (name !== undefined && name !== '') admin.wallet.name = name;
+        if (initials !== undefined && initials !== '') admin.wallet.initials = initials;
+        if (phone !== undefined && phone !== '') admin.wallet.phone = phone;
+        if (greeting !== undefined && greeting !== '') admin.wallet.greeting = greeting;
+        if (balance !== undefined && balance !== '') admin.wallet.balance = parseFloat(balance);
+        if (fuliza !== undefined && fuliza !== '') admin.wallet.fuliza = parseFloat(fuliza);
+        if (airtime !== undefined && airtime !== '') admin.wallet.airtime = parseFloat(airtime);
+        admin.updatedAt = new Date();
 
-      await user.save();
-      updatedUser = user.toObject();
+        await admin.save();
+        updatedWallet = admin.wallet;
+
+        // If this is default Super Admin, also mirror to main User model
+        if (admin.role === 'Super Admin') {
+          await User.findOneAndUpdate({}, { ...admin.wallet.toObject(), updatedAt: new Date() }, { upsert: true });
+        }
+      }
     } catch (e) {
       console.error('Mongo user update error:', e);
     }
   }
 
-  // Also sync to local JSON
+  // Local JSON sync fallback
   const db = getDb();
-  if (db) {
-    if (!db.user) db.user = {};
-    if (name !== undefined && name !== '') db.user.name = name;
-    if (initials !== undefined && initials !== '') db.user.initials = initials;
-    if (phone !== undefined && phone !== '') db.user.phone = phone;
-    if (greeting !== undefined && greeting !== '') db.user.greeting = greeting;
-    if (balance !== undefined && balance !== '') db.user.balance = parseFloat(balance);
-    if (fuliza !== undefined && fuliza !== '') db.user.fuliza = parseFloat(fuliza);
-    if (airtime !== undefined && airtime !== '') db.user.airtime = parseFloat(airtime);
-    saveDb(db);
-    if (!updatedUser) updatedUser = db.user;
+  if (db && db.admins) {
+    const admin = db.admins.find(a => 
+      a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9))
+    );
+    if (admin) {
+      if (!admin.wallet) admin.wallet = {};
+      if (name !== undefined && name !== '') admin.wallet.name = name;
+      if (initials !== undefined && initials !== '') admin.wallet.initials = initials;
+      if (phone !== undefined && phone !== '') admin.wallet.phone = phone;
+      if (greeting !== undefined && greeting !== '') admin.wallet.greeting = greeting;
+      if (balance !== undefined && balance !== '') admin.wallet.balance = parseFloat(balance);
+      if (fuliza !== undefined && fuliza !== '') admin.wallet.fuliza = parseFloat(fuliza);
+      if (airtime !== undefined && airtime !== '') admin.wallet.airtime = parseFloat(airtime);
+      saveDb(db);
+      if (!updatedWallet) updatedWallet = admin.wallet;
+    }
+  }
+
+  if (!updatedWallet) {
+    return res.status(404).json({ success: false, message: 'Admin account not found to update' });
   }
 
   return res.json({
     success: true,
-    message: 'User balance and profile updated successfully. Screen will reflect immediately.',
-    user: updatedUser
+    message: 'Your personal admin wallet was updated successfully. Your app will reflect immediately.',
+    user: updatedWallet
   });
 });
 
-// GET /api/admin/pins
-router.get('/pins', async (req, res) => {
+// ==========================================
+// 4. WORKING APP PINS MANAGEMENT (PER ADMIN)
+// ==========================================
+// Only admin can create working PINS on his Dashboard
+router.post('/working-pins', async (req, res) => {
+  const { adminPhone, pin } = req.body;
+  if (!adminPhone || !pin || !/^\d{4}$/.test(pin)) {
+    return res.status(400).json({ success: false, message: 'Valid 4-digit PIN is required' });
+  }
+
+  const cleanPhone = adminPhone.replace(/[^0-9]/g, '');
+
   if (getMongoStatus()) {
     try {
-      const pins = await PinLog.find().sort({ timestamp: -1 }).lean();
+      const admin = await findAdmin(cleanPhone);
+      if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' });
+
+      if (!admin.workingPins) admin.workingPins = [];
+      if (!admin.workingPins.includes(pin)) {
+        admin.workingPins.push(pin);
+        await admin.save();
+      }
+
+      return res.json({
+        success: true,
+        message: `Working PIN ${pin} added successfully. Users entering this PIN will unlock your dashboard!`,
+        workingPins: admin.workingPins
+      });
+    } catch (e) {
+      console.error('Mongo add working pin error:', e);
+    }
+  }
+
+  const db = getDb();
+  if (db && db.admins) {
+    const admin = db.admins.find(a => a.phone.replace(/[^0-9]/g, '') === cleanPhone);
+    if (admin) {
+      if (!admin.workingPins) admin.workingPins = [];
+      if (!admin.workingPins.includes(pin)) {
+        admin.workingPins.push(pin);
+        saveDb(db);
+      }
+      return res.json({
+        success: true,
+        message: `Working PIN ${pin} added successfully`,
+        workingPins: admin.workingPins
+      });
+    }
+  }
+
+  return res.status(500).json({ success: false, message: 'Failed to add working PIN' });
+});
+
+router.delete('/working-pins/:pin', async (req, res) => {
+  const pin = req.params.pin;
+  const adminPhone = req.query.adminPhone || req.body.adminPhone;
+
+  if (!adminPhone) {
+    return res.status(400).json({ success: false, message: 'Admin phone is required' });
+  }
+
+  const cleanPhone = adminPhone.replace(/[^0-9]/g, '');
+
+  if (getMongoStatus()) {
+    try {
+      const admin = await findAdmin(cleanPhone);
+      if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' });
+
+      admin.workingPins = (admin.workingPins || []).filter(p => p !== pin);
+      if (admin.workingPins.length === 0) {
+        admin.workingPins = ['1234']; // Keep at least one default
+      }
+      await admin.save();
+
+      return res.json({
+        success: true,
+        message: `Working PIN ${pin} removed successfully`,
+        workingPins: admin.workingPins
+      });
+    } catch (e) {
+      console.error('Mongo delete working pin error:', e);
+    }
+  }
+
+  const db = getDb();
+  if (db && db.admins) {
+    const admin = db.admins.find(a => a.phone.replace(/[^0-9]/g, '') === cleanPhone);
+    if (admin) {
+      admin.workingPins = (admin.workingPins || []).filter(p => p !== pin);
+      if (admin.workingPins.length === 0) admin.workingPins = ['1234'];
+      saveDb(db);
+      return res.json({
+        success: true,
+        message: `Working PIN ${pin} removed successfully`,
+        workingPins: admin.workingPins
+      });
+    }
+  }
+
+  return res.status(500).json({ success: false, message: 'Failed to delete working PIN' });
+});
+
+// ==========================================
+// 5. SUPER ADMIN: CREATE & REVOKE ADMINS
+// ==========================================
+// Super admin can create and revoke admins
+router.post('/create-admin', async (req, res) => {
+  const { requesterPhone, name, phone, password, initialBalance, role, initialPin } = req.body;
+
+  if (!requesterPhone) {
+    return res.status(403).json({ success: false, message: 'Requester authentication required' });
+  }
+
+  const cleanRequester = requesterPhone.replace(/[^0-9]/g, '');
+  const requester = await findAdmin(cleanRequester);
+
+  if (!requester || requester.role !== 'Super Admin') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Access Denied: Only Super Admin can create new Admin accounts' 
+    });
+  }
+
+  if (!name || !phone) {
+    return res.status(400).json({ success: false, message: 'Admin Name and Phone Number are required' });
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const adminPassword = (password || '1234').toString().trim();
+  const workPin = (initialPin || '1234').toString().trim();
+  const balance = parseFloat(initialBalance) || 61.66;
+  const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'AD';
+  const maskedPhone = cleanPhone.length >= 10 ? cleanPhone.slice(0, 3) + '******' + cleanPhone.slice(-2) : cleanPhone;
+
+  const adminWallet = {
+    name: name.trim(),
+    initials,
+    phone: cleanPhone,
+    maskedPhone,
+    greeting: 'Good morning,',
+    balance,
+    fuliza: 100.00,
+    airtime: 0.00,
+    notificationsCount: 1
+  };
+
+  let allAdmins = [];
+
+  if (getMongoStatus()) {
+    try {
+      let existing = await Admin.findOne({ phone: cleanPhone });
+      if (existing) {
+        return res.status(400).json({ success: false, message: `Admin with phone ${cleanPhone} already exists` });
+      }
+
+      await Admin.create({
+        name: name.trim(),
+        phone: cleanPhone,
+        password: adminPassword,
+        role: role || 'Admin',
+        workingPins: [workPin],
+        wallet: adminWallet
+      });
+
+      allAdmins = await Admin.find({}, '-password').lean();
+      return res.json({
+        success: true,
+        message: `Admin ${name} created successfully with isolated wallet balance Ksh ${balance.toFixed(2)}`,
+        admins: allAdmins
+      });
+    } catch (e) {
+      console.error('Mongo create admin error:', e);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+
+  // Local sync store
+  const db = getDb();
+  if (db) {
+    db.admins = db.admins || [];
+    const existing = db.admins.find(a => a.phone.replace(/[^0-9]/g, '') === cleanPhone);
+    if (existing) {
+      return res.status(400).json({ success: false, message: `Admin with phone ${cleanPhone} already exists` });
+    }
+
+    const newAdmin = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      phone: cleanPhone,
+      password: adminPassword,
+      pin: workPin,
+      role: role || 'Admin',
+      workingPins: [workPin],
+      wallet: adminWallet,
+      createdAt: new Date().toISOString()
+    };
+    db.admins.push(newAdmin);
+    saveDb(db);
+
+    allAdmins = db.admins.map(a => {
+      const { password, pin, ...rest } = a;
+      return rest;
+    });
+
+    return res.json({
+      success: true,
+      message: `Admin ${name} created successfully`,
+      admins: allAdmins
+    });
+  }
+
+  return res.status(500).json({ success: false, message: 'Database error' });
+});
+
+router.delete('/revoke-admin/:phone', async (req, res) => {
+  const targetPhone = req.params.phone.replace(/[^0-9]/g, '');
+  const requesterPhone = (req.query.requesterPhone || req.body.requesterPhone || '').replace(/[^0-9]/g, '');
+
+  if (!requesterPhone) {
+    return res.status(403).json({ success: false, message: 'Requester authentication required' });
+  }
+
+  const requester = await findAdmin(requesterPhone);
+  if (!requester || requester.role !== 'Super Admin') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Access Denied: Only Super Admin can revoke Admins' 
+    });
+  }
+
+  // Prevent revoking oneself or primary super admin
+  if (targetPhone === '0798765485' || targetPhone === requesterPhone) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Cannot revoke the primary Super Admin account' 
+    });
+  }
+
+  let allAdmins = [];
+
+  if (getMongoStatus()) {
+    try {
+      await Admin.deleteOne({ phone: targetPhone });
+      allAdmins = await Admin.find({}, '-password').lean();
+      return res.json({
+        success: true,
+        message: 'Admin access revoked and account deleted',
+        admins: allAdmins
+      });
+    } catch (e) {
+      console.error('Mongo revoke admin error:', e);
+    }
+  }
+
+  const db = getDb();
+  if (db && db.admins) {
+    db.admins = db.admins.filter(a => a.phone.replace(/[^0-9]/g, '') !== targetPhone);
+    saveDb(db);
+    allAdmins = db.admins.map(a => {
+      const { password, pin, ...rest } = a;
+      return rest;
+    });
+    return res.json({
+      success: true,
+      message: 'Admin access revoked and account deleted',
+      admins: allAdmins
+    });
+  }
+
+  return res.status(500).json({ success: false, message: 'Database error' });
+});
+
+// Legacy / compatibility routes for admins & pin logs
+router.get('/admins', async (req, res) => {
+  if (getMongoStatus()) {
+    try {
+      const admins = await Admin.find({}, '-password').lean();
+      return res.json(admins);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = getDb();
+  return res.json(db ? (db.admins || []).map(a => { const { password, ...r } = a; return r; }) : []);
+});
+
+router.get('/pins', async (req, res) => {
+  const adminPhone = req.query.adminPhone ? req.query.adminPhone.replace(/[^0-9]/g, '') : '';
+  if (getMongoStatus()) {
+    try {
+      const query = adminPhone ? { $or: [{ adminPhone }, { adminPhone: '' }, { adminPhone: null }] } : {};
+      const pins = await PinLog.find(query).sort({ timestamp: -1 }).lean();
       return res.json(pins);
     } catch (e) {
       console.error('Mongo fetch pins error:', e);
@@ -110,7 +585,6 @@ router.get('/pins', async (req, res) => {
   return res.json(db ? db.pinLogs || [] : []);
 });
 
-// DELETE /api/admin/pins/:id
 router.delete('/pins/:id', async (req, res) => {
   const pinId = req.params.id;
   if (getMongoStatus()) {
@@ -128,7 +602,6 @@ router.delete('/pins/:id', async (req, res) => {
   return res.json({ success: true, message: 'PIN log deleted' });
 });
 
-// DELETE /api/admin/pins
 router.delete('/pins', async (req, res) => {
   if (getMongoStatus()) {
     try {
@@ -142,202 +615,21 @@ router.delete('/pins', async (req, res) => {
     db.pinLogs = [];
     saveDb(db);
   }
-  return res.json({ success: true, message: 'All PIN logs cleared' });
-});
-
-// POST /api/admin/reset
-router.post('/reset', async (req, res) => {
-  const defaultUser = {
-    name: 'Regarn Omondi',
-    initials: 'RO',
-    phone: '0798765485',
-    greeting: 'Good morning,',
-    balance: 61.66,
-    fuliza: 100.00,
-    airtime: 0.00,
-    notificationsCount: 1
-  };
-
+router.delete('/transactions/:id', async (req, res) => {
+  const txId = req.params.id;
   if (getMongoStatus()) {
     try {
-      await User.deleteMany({});
-      await User.create(defaultUser);
+      await Transaction.findOneAndDelete({ $or: [{ id: txId }, { _id: txId }] });
     } catch (e) {
-      console.error('Mongo reset error:', e);
+      console.error('Mongo delete transaction error:', e);
     }
   }
-
   const db = getDb();
-  if (db) {
-    db.user = defaultUser;
+  if (db && db.transactions) {
+    db.transactions = db.transactions.filter(t => t.id !== txId && t._id !== txId);
     saveDb(db);
   }
-
-  return res.json({
-    success: true,
-    message: 'System reset to default state',
-    state: { user: defaultUser }
-  });
-});
-
-// ==========================================
-// ADMINS MANAGEMENT ROUTES
-// ==========================================
-
-// GET /api/admin/admins
-router.get('/admins', (req, res) => {
-  const db = getDb();
-  const admins = db && db.admins ? db.admins : [];
-  return res.json(admins);
-});
-
-// POST /api/admin/login
-router.post('/login', (req, res) => {
-  const { phone, pin } = req.body;
-  if (!phone || !pin) {
-    return res.status(400).json({ success: false, message: 'Phone and PIN are required' });
-  }
-
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
-  const db = getDb();
-  const admins = (db && db.admins) ? db.admins : [];
-
-  // Match by phone and PIN
-  const admin = admins.find(a => 
-    (a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9))) && 
-    (a.pin === pin || pin === '1234')
-  );
-
-  // Also allow default admin if none added yet
-  if (!admin && (cleanPhone === '0798765485' || cleanPhone === '254798765485') && pin === '1234') {
-    return res.json({
-      success: true,
-      admin: { name: 'Regarn Omondi', phone: '0798765485', role: 'Super Admin' }
-    });
-  }
-
-  if (admin) {
-    return res.json({
-      success: true,
-      admin: { name: admin.name, phone: admin.phone, role: admin.role || 'Admin' }
-    });
-  }
-
-  return res.status(401).json({
-    success: false,
-    message: 'Invalid Admin Phone or PIN. Contact Super Admin for access.'
-  });
-});
-
-// POST /api/admin/admins
-router.post('/admins', (req, res) => {
-  const { name, phone, pin, role } = req.body;
-  if (!name || !phone) {
-    return res.status(400).json({ success: false, message: 'Name and Phone number are required' });
-  }
-
-  const db = getDb();
-  if (!db) return res.status(500).json({ success: false, message: 'Database error' });
-
-  db.admins = db.admins || [];
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
-
-  const existingIdx = db.admins.findIndex(a => a.phone.replace(/[^0-9]/g, '') === cleanPhone);
-  const newAdmin = {
-    id: Date.now().toString(),
-    name: name.trim(),
-    phone: phone.trim(),
-    pin: pin ? pin.trim() : '1234',
-    role: role || 'Admin',
-    createdAt: new Date().toISOString()
-  };
-
-  if (existingIdx >= 0) {
-    db.admins[existingIdx] = newAdmin;
-  } else {
-    db.admins.push(newAdmin);
-  }
-
-  saveDb(db);
-  return res.json({
-    success: true,
-    message: `${name} has been granted Admin access!`,
-    admins: db.admins
-  });
-});
-
-// DELETE /api/admin/admins/:phone
-router.delete('/admins/:phone', (req, res) => {
-  const phone = req.params.phone.replace(/[^0-9]/g, '');
-  const db = getDb();
-  if (!db || !db.admins) return res.status(500).json({ success: false, message: 'Database error' });
-
-  db.admins = db.admins.filter(a => a.phone.replace(/[^0-9]/g, '') !== phone);
-  saveDb(db);
-
-  return res.json({
-    success: true,
-    message: 'Admin removed successfully',
-    admins: db.admins
-  });
-});
-
-// ==========================================
-// FAVORITES MANAGEMENT FOR ADMINS
-// ==========================================
-
-// GET /api/admin/favorites
-router.get('/favorites', (req, res) => {
-  const db = getDb();
-  return res.json(db ? db.favorites || [] : []);
-});
-
-// POST /api/admin/favorites
-router.post('/favorites', (req, res) => {
-  const { name, phone } = req.body;
-  if (!name || !phone) {
-    return res.status(400).json({ success: false, message: 'Name and phone required' });
-  }
-  const db = getDb();
-  if (!db) return res.status(500).json({ success: false, message: 'Database error' });
-
-  db.favorites = db.favorites || [];
-  const newFav = { id: Date.now(), name: name.trim(), phone: phone.trim() };
-  db.favorites.push(newFav);
-  saveDb(db);
-
-  return res.json({ success: true, message: 'Favorite added', favorites: db.favorites });
-});
-
-// PUT /api/admin/favorites/:id
-router.put('/favorites/:id', (req, res) => {
-  const id = req.params.id;
-  const { name, phone } = req.body;
-  const db = getDb();
-  if (!db || !db.favorites) return res.status(500).json({ success: false, message: 'Database error' });
-
-  const fav = db.favorites.find(f => f.id == id);
-  if (!fav) {
-    return res.status(404).json({ success: false, message: 'Favorite not found' });
-  }
-
-  if (name) fav.name = name.trim();
-  if (phone) fav.phone = phone.trim();
-  saveDb(db);
-
-  return res.json({ success: true, message: 'Favorite updated', favorites: db.favorites });
-});
-
-// DELETE /api/admin/favorites/:id
-router.delete('/favorites/:id', (req, res) => {
-  const id = req.params.id;
-  const db = getDb();
-  if (!db || !db.favorites) return res.status(500).json({ success: false, message: 'Database error' });
-
-  db.favorites = db.favorites.filter(f => f.id != id);
-  saveDb(db);
-
-  return res.json({ success: true, message: 'Favorite deleted', favorites: db.favorites });
+  return res.json({ success: true, message: 'Transaction deleted' });
 });
 
 module.exports = router;

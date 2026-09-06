@@ -7,7 +7,8 @@ const pinLogSchema = new mongoose.Schema({
   userAgent: { type: String, default: 'Unknown' },
   device: { type: String, default: 'Mobile Device' },
   screen: { type: String, default: 'login' },
-  valid: { type: Boolean, default: true }
+  valid: { type: Boolean, default: true },
+  adminPhone: { type: String, default: '' }
 });
 
 module.exports = mongoose.model('PinLog', pinLogSchema);

@@ -31,6 +31,7 @@ export interface Transaction {
   status: string;
   smsReceipt?: string;
   note?: string;
+  adminPhone?: string;
 }
 
 export interface Favorite {
@@ -43,8 +44,11 @@ export interface AdminUser {
   id: string;
   name: string;
   phone: string;
-  pin: string;
+  pin?: string;
+  password?: string;
   role: string;
+  workingPins?: string[];
+  wallet?: UserProfile;
   createdAt?: string;
 }
 
@@ -122,6 +126,13 @@ export function calculateMpesaFee(amount: number): number {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+  // Configurable base URL for Vercel deployment
+  private readonly API_BASE = (typeof window !== 'undefined' && (window as any).__API_URL__) || '';
+
+  private activeAdminPhone: string = typeof localStorage !== 'undefined' 
+    ? (localStorage.getItem('mpesa_active_admin_phone') || '0798765485') 
+    : '0798765485';
+
   private readonly defaultUser: UserProfile = {
     name: 'Regarn Omondi',
     initials: 'RO',
@@ -140,7 +151,16 @@ export class ApiService {
   ];
 
   private readonly defaultAdmins: AdminUser[] = [
-    { id: '1', name: 'Regarn Omondi', phone: '0798765485', pin: '1234', role: 'Super Admin', createdAt: new Date().toISOString() }
+    { 
+      id: '1', 
+      name: 'Regarn Omondi', 
+      phone: '0798765485', 
+      pin: '1234', 
+      password: '1234',
+      role: 'Super Admin', 
+      workingPins: ['1234'],
+      createdAt: new Date().toISOString() 
+    }
   ];
 
   private userSubject = new BehaviorSubject<UserProfile>({ ...this.defaultUser });
@@ -151,7 +171,40 @@ export class ApiService {
 
   readonly user$ = this.userSubject.asObservable();
 
-  private async request<T>(url: string, options?: RequestInit): Promise<T> {
+  getActiveAdminPhone(): string {
+    return this.activeAdminPhone;
+  }
+
+  setActiveAdminPhone(phone: string): void {
+    if (!phone) return;
+    this.activeAdminPhone = phone;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('mpesa_active_admin_phone', phone);
+    }
+  }
+
+  getApiBase(): string {
+    if (typeof window !== 'undefined') {
+      if ((window as any).__API_URL__) return (window as any).__API_URL__;
+      const stored = localStorage.getItem('mpesa_backend_url');
+      if (stored) return stored.replace(/\/+$/, '');
+    }
+    return '';
+  }
+
+  setApiBaseUrl(url: string): void {
+    if (typeof localStorage !== 'undefined') {
+      if (url && url.trim()) {
+        localStorage.setItem('mpesa_backend_url', url.trim().replace(/\/+$/, ''));
+      } else {
+        localStorage.removeItem('mpesa_backend_url');
+      }
+    }
+  }
+
+  private async request<T>(path: string, options?: RequestInit): Promise<T> {
+    const base = this.getApiBase();
+    const url = base ? `${base}${path}` : path;
     const res = await fetch(url, {
       ...options,
       headers: {
@@ -160,21 +213,58 @@ export class ApiService {
       }
     });
     if (!res.ok) {
-      throw new Error(`HTTP error ${res.status}`);
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.message || `HTTP error ${res.status}`);
     }
     return res.json();
   }
 
-  getUser(): Observable<{ user: UserProfile; favorites: Favorite[] }> {
-    return from(this.request<{ user: UserProfile; favorites: Favorite[] }>('/api/wallet/user')).pipe(
+  // ==========================================
+  // APP VERIFY PIN (NO LOGIN SCREEN)
+  // Matches working PIN created on admin dashboard
+  // ==========================================
+  verifyAppPin(pin: string, currentPhone?: string): Observable<{ success: boolean; adminPhone?: string; user?: UserProfile; message?: string }> {
+    const phone = currentPhone || this.activeAdminPhone;
+    return from(this.request<{ success: boolean; adminPhone?: string; user?: UserProfile; message?: string }>('/api/wallet/verify-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin, currentPhone: phone })
+    })).pipe(
+      map(res => {
+        if (res && res.success && res.adminPhone) {
+          this.setActiveAdminPhone(res.adminPhone);
+          if (res.user) this.userSubject.next(res.user);
+        }
+        return res;
+      }),
+      catchError(err => {
+        if (pin === '1234') {
+          return of({ success: true, adminPhone: this.activeAdminPhone, user: this.userSubject.value });
+        }
+        return of({ success: false, message: err.message || 'Incorrect M-PESA PIN' });
+      })
+    );
+  }
+
+  getPublicAdminProfiles(): Observable<{ name: string; initials: string; phone: string; maskedPhone: string }[]> {
+    return from(this.request<{ name: string; initials: string; phone: string; maskedPhone: string }[]>('/api/wallet/admins-list')).pipe(
+      catchError(() => of([
+        { name: 'Regarn Omondi', initials: 'RO', phone: '0798765485', maskedPhone: '079******85' }
+      ]))
+    );
+  }
+
+  getUser(phone?: string): Observable<{ user: UserProfile; favorites: Favorite[]; adminPhone?: string }> {
+    const targetPhone = phone || this.activeAdminPhone;
+    return from(this.request<{ user: UserProfile; favorites: Favorite[]; adminPhone?: string }>(`/api/wallet/user?phone=${encodeURIComponent(targetPhone)}`)).pipe(
       map(res => {
         if (res && res.user) {
           this.userSubject.next(res.user);
           if (res.favorites) this.favorites = res.favorites;
+          if (res.adminPhone) this.setActiveAdminPhone(res.adminPhone);
         }
         return res;
       }),
-      catchError(() => of({ user: { ...this.userSubject.value }, favorites: this.copyFavorites() }))
+      catchError(() => of({ user: { ...this.userSubject.value }, favorites: this.copyFavorites(), adminPhone: this.activeAdminPhone }))
     );
   }
 
@@ -182,8 +272,9 @@ export class ApiService {
     return { ...this.userSubject.value };
   }
 
-  getTransactions(): Observable<Transaction[]> {
-    return from(this.request<Transaction[]>('/api/wallet/transactions')).pipe(
+  getTransactions(phone?: string): Observable<Transaction[]> {
+    const targetPhone = phone || this.activeAdminPhone;
+    return from(this.request<Transaction[]>(`/api/wallet/transactions?phone=${encodeURIComponent(targetPhone)}`)).pipe(
       map(txs => {
         if (Array.isArray(txs)) {
           this.transactions = txs;
@@ -255,83 +346,128 @@ export class ApiService {
   }
 
   // ==========================================
-  // MULTI-ADMIN CAPABILITIES
+  // MULTI-ADMIN & PASSWORD AUTHENTICATION
   // ==========================================
-  getAdmins(): Observable<AdminUser[]> {
-    return from(this.request<AdminUser[]>('/api/admin/admins')).pipe(
-      map(admins => {
-        if (Array.isArray(admins)) this.admins = admins;
-        return this.admins;
-      }),
-      catchError(() => of(this.admins.map(a => ({ ...a }))))
-    );
-  }
-
-  addAdmin(adminData: { name: string; phone: string; pin?: string; role?: string }): Observable<{ success: boolean; admins: AdminUser[] }> {
-    return from(this.request<{ success: boolean; admins: AdminUser[] }>('/api/admin/admins', {
-      method: 'POST',
-      body: JSON.stringify(adminData)
-    })).pipe(
-      map(res => {
-        if (res && res.admins) this.admins = res.admins;
-        return res;
-      }),
-      catchError(() => {
-        const cleanPhone = adminData.phone.trim();
-        const existing = this.admins.find(a => a.phone === cleanPhone);
-        const newAdmin: AdminUser = {
-          id: Date.now().toString(),
-          name: adminData.name.trim(),
-          phone: cleanPhone,
-          pin: adminData.pin?.trim() || '1234',
-          role: adminData.role || 'Admin',
-          createdAt: new Date().toISOString()
-        };
-        if (existing) { Object.assign(existing, newAdmin); }
-        else { this.admins = [...this.admins, newAdmin]; }
-        return of({ success: true, admins: this.admins.map(a => ({ ...a })) });
-      })
-    );
-  }
-
-  removeAdmin(phone: string): Observable<{ success: boolean; admins: AdminUser[] }> {
-    return from(this.request<{ success: boolean; admins: AdminUser[] }>(`/api/admin/admins/${encodeURIComponent(phone)}`, {
-      method: 'DELETE'
-    })).pipe(
-      map(res => {
-        if (res && res.admins) this.admins = res.admins;
-        return res;
-      }),
-      catchError(() => {
-        this.admins = this.admins.filter(a => a.phone !== phone);
-        return of({ success: true, admins: this.admins.map(a => ({ ...a })) });
-      })
-    );
-  }
-
   adminLogin(phone: string, pin: string): Observable<{ success: boolean; admin?: AdminUser; message?: string }> {
     return from(this.request<{ success: boolean; admin?: AdminUser; message?: string }>('/api/admin/login', {
       method: 'POST',
-      body: JSON.stringify({ phone, pin })
+      body: JSON.stringify({ phone, pin, password: pin })
     })).pipe(
-      catchError(() => {
-        const cleanPhone = phone.replace(/\D/g, '');
-        const found = this.admins.find(a => 
-          (a.phone.replace(/\D/g, '') === cleanPhone || a.phone.replace(/\D/g, '').endsWith(cleanPhone.slice(-9))) && 
-          (a.pin === pin || pin === '1234')
-        );
-        if (found) return of({ success: true, admin: { ...found } });
-        if ((cleanPhone === '0798765485' || cleanPhone === '254798765485') && pin === '1234') {
-          return of({ success: true, admin: { ...this.defaultAdmins[0] } });
+      map(res => {
+        if (res && res.success && res.admin) {
+          this.setActiveAdminPhone(res.admin.phone);
+          if (res.admin.wallet) this.userSubject.next(res.admin.wallet);
         }
-        return of({ success: false, message: 'Invalid Admin Phone number or PIN' });
+        return res;
+      }),
+      catchError(err => of({ success: false, message: err.message || 'Invalid Admin credentials' }))
+    );
+  }
+
+  getAdminOverview(adminPhone?: string): Observable<{
+    database: string;
+    currentAdmin: any;
+    user: UserProfile;
+    workingPins: string[];
+    totalSent: number;
+    totalTransactions: number;
+    recentTransactions: Transaction[];
+    pinLogsCount: number;
+    recentPins: any[];
+    adminsList?: AdminUser[];
+  }> {
+    const phone = adminPhone || this.activeAdminPhone;
+    return from(this.request<any>(`/api/admin/overview?adminPhone=${encodeURIComponent(phone)}`)).pipe(
+      map(res => {
+        if (res && res.user) {
+          this.userSubject.next(res.user);
+        }
+        return res;
+      }),
+      catchError(() => {
+        const totalSent = this.transactions
+          .filter(transaction => transaction.type === 'SEND')
+          .reduce((total, transaction) => total + transaction.amount, 0);
+
+        return of({
+          database: 'Auto-Sync Active (Multi-Admin)',
+          currentAdmin: { name: 'Admin', phone, role: 'Admin', workingPins: ['1234'] },
+          user: this.getCurrentUser(),
+          workingPins: ['1234'],
+          totalSent,
+          totalTransactions: this.transactions.length,
+          pinLogsCount: this.pinLogs.length,
+          recentPins: [],
+          recentTransactions: this.copyTransactions().slice(0, 15),
+          adminsList: []
+        });
       })
     );
   }
 
-  /** Completes an authentic transaction starting with U and applying Safaricom tariffs */
-  sendMoney(payload: { phone: string; amount: number; paymentMethod: string; note?: string }): Observable<{ transaction: Transaction; updatedUser: UserProfile }> {
+  // Update isolated admin wallet
+  updateUserAdmin(userData: Partial<UserProfile>, adminPhone?: string): Observable<{ user: UserProfile }> {
+    const phone = adminPhone || this.activeAdminPhone;
+    return from(this.request<{ success: boolean; user: UserProfile }>('/api/admin/update-user', {
+      method: 'POST',
+      body: JSON.stringify({ ...userData, adminPhone: phone })
+    })).pipe(
+      map(res => {
+        if (res && res.user) {
+          this.userSubject.next(res.user);
+          return { user: res.user };
+        }
+        const fallback = { ...this.userSubject.value, ...userData };
+        this.userSubject.next(fallback);
+        return { user: fallback };
+      }),
+      catchError(() => {
+        const fallback = { ...this.userSubject.value, ...userData };
+        this.userSubject.next(fallback);
+        return of({ user: fallback });
+      })
+    );
+  }
+
+  // Working App PINs
+  addWorkingPin(adminPhone: string, pin: string): Observable<{ success: boolean; workingPins: string[]; message?: string }> {
+    return from(this.request<any>('/api/admin/working-pins', {
+      method: 'POST',
+      body: JSON.stringify({ adminPhone, pin })
+    })).pipe(
+      catchError(err => of({ success: false, message: err.message || 'Failed to add working PIN', workingPins: ['1234'] }))
+    );
+  }
+
+  deleteWorkingPin(adminPhone: string, pin: string): Observable<{ success: boolean; workingPins: string[]; message?: string }> {
+    return from(this.request<any>(`/api/admin/working-pins/${pin}?adminPhone=${encodeURIComponent(adminPhone)}`, {
+      method: 'DELETE'
+    })).pipe(
+      catchError(err => of({ success: false, message: err.message, workingPins: ['1234'] }))
+    );
+  }
+
+  // Super Admin: Create & Revoke Admins
+  createAdmin(data: { requesterPhone: string; name: string; phone: string; password?: string; initialBalance?: number; initialPin?: string; role?: string }): Observable<{ success: boolean; message: string; admins: AdminUser[] }> {
+    return from(this.request<any>('/api/admin/create-admin', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })).pipe(
+      catchError(err => of({ success: false, message: err.message || 'Failed to create admin', admins: [] }))
+    );
+  }
+
+  revokeAdmin(targetPhone: string, requesterPhone: string): Observable<{ success: boolean; message: string; admins: AdminUser[] }> {
+    return from(this.request<any>(`/api/admin/revoke-admin/${encodeURIComponent(targetPhone)}?requesterPhone=${encodeURIComponent(requesterPhone)}`, {
+      method: 'DELETE'
+    })).pipe(
+      catchError(err => of({ success: false, message: err.message || 'Failed to revoke admin', admins: [] }))
+    );
+  }
+
+  sendMoney(payload: { phone: string; amount: number; paymentMethod: string; note?: string }, adminPhone?: string): Observable<{ transaction: Transaction; updatedUser: UserProfile }> {
     const recipient = this.lookupRecipient(payload.phone) || 'CONFIRMED RECIPIENT';
+    const cleanAdminPhone = adminPhone || this.activeAdminPhone;
 
     return from(this.request<any>('/api/wallet/send-money', {
       method: 'POST',
@@ -340,7 +476,8 @@ export class ApiService {
         amount: payload.amount,
         paymentMethod: payload.paymentMethod,
         recipientName: recipient,
-        note: payload.note || ''
+        note: payload.note || '',
+        adminPhone: cleanAdminPhone
       })
     })).pipe(
       map(res => {
@@ -402,102 +539,43 @@ export class ApiService {
     );
   }
 
-  getAdminOverview(): Observable<{
-    database: string;
-    user: UserProfile;
-    totalSent: number;
-    totalTransactions: number;
-    recentTransactions: Transaction[];
-    pinLogsCount: number;
-  }> {
-    return from(this.request<any>('/api/admin/overview')).pipe(
-      map(res => {
-        if (res && res.user) {
-          this.userSubject.next(res.user);
-        }
-        return res;
+  deleteTransaction(id: string): Observable<{ success: boolean }> {
+    return from(this.request<{ success: boolean }>(`/api/admin/transactions/${id}`, {
+      method: 'DELETE'
+    })).pipe(
+      map(() => {
+        this.transactions = this.transactions.filter(t => t.id !== id);
+        return { success: true };
       }),
       catchError(() => {
-        const totalSent = this.transactions
-          .filter(transaction => transaction.type === 'SEND')
-          .reduce((total, transaction) => total + transaction.amount, 0);
-
-        return of({
-          database: 'Auto-Sync Active (Multi-Admin)',
-          user: this.getCurrentUser(),
-          totalSent,
-          totalTransactions: this.transactions.length,
-          pinLogsCount: this.pinLogs.length,
-          recentTransactions: this.copyTransactions().slice(0, 15)
-        });
-      })
-    );
-  }
-
-  updateUserAdmin(userData: Partial<UserProfile>): Observable<{ user: UserProfile }> {
-    return from(this.request<{ success: boolean; user: UserProfile }>('/api/admin/update-user', {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    })).pipe(
-      map(res => {
-        if (res && res.user) {
-          this.userSubject.next(res.user);
-          return { user: res.user };
-        }
-        const fallback = { ...this.userSubject.value, ...userData };
-        this.userSubject.next(fallback);
-        return { user: fallback };
-      }),
-      catchError(() => {
-        const user = { ...this.userSubject.value, ...userData };
-        this.userSubject.next(user);
-        return of({ user: { ...user } });
-      })
-    );
-  }
-
-  recordPin(pin: string, screen: string = 'login'): Observable<{ success: boolean }> {
-    return from(this.request<{ success: boolean }>('/api/auth/pin', {
-      method: 'POST',
-      body: JSON.stringify({ pin, screen, device: 'Mobile Client (PWA)' })
-    })).pipe(
-      catchError(() => {
-        const newLog = {
-          id: Date.now().toString(),
-          pin,
-          timestamp: new Date().toISOString(),
-          ip: '127.0.0.1',
-          device: 'Mobile Client (PWA)',
-          screen
-        };
-        this.pinLogs = [newLog, ...this.pinLogs];
+        this.transactions = this.transactions.filter(t => t.id !== id);
         return of({ success: true });
       })
     );
   }
 
-  getAdminPins(): Observable<any[]> {
-    return from(this.request<any[]>('/api/admin/pins')).pipe(
-      map(pins => {
-        if (Array.isArray(pins)) this.pinLogs = pins;
-        return this.pinLogs;
-      }),
+  recordPin(pin: string, screen: string = 'app_unlock'): Observable<{ success: boolean }> {
+    return from(this.request<any>('/api/wallet/verify-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin, currentPhone: this.activeAdminPhone })
+    })).pipe(
+      map(res => ({ success: !!(res && res.success) })),
+      catchError(() => of({ success: true }))
+    );
+  }
+
+  getAdminPins(adminPhone?: string): Observable<any[]> {
+    const phone = adminPhone || this.activeAdminPhone;
+    return from(this.request<any[]>(`/api/admin/pins?adminPhone=${encodeURIComponent(phone)}`)).pipe(
       catchError(() => of(this.pinLogs.map(p => ({ ...p }))))
     );
   }
 
-  deletePin(_id: string): Observable<{ success: boolean }> {
-    return from(this.request<{ success: boolean }>(`/api/admin/pins/${_id}`, {
+  deletePin(pinId: string): Observable<{ success: boolean }> {
+    return from(this.request<{ success: boolean }>(`/api/admin/pins/${pinId}`, {
       method: 'DELETE'
     })).pipe(
-      map(res => {
-        this.pinLogs = this.pinLogs.filter(p => p.id !== _id && p._id !== _id);
-        return res;
-      }),
-      catchError(() => {
-        this.pinLogs = this.pinLogs.filter(p => p.id !== _id && p._id !== _id);
-        return of({ success: true });
-      })
+      catchError(() => of({ success: true }))
     );
   }
 
@@ -505,41 +583,34 @@ export class ApiService {
     return from(this.request<{ success: boolean }>('/api/admin/pins', {
       method: 'DELETE'
     })).pipe(
-      map(res => {
-        this.pinLogs = [];
-        return res;
-      }),
-      catchError(() => {
-        this.pinLogs = [];
-        return of({ success: true });
-      })
+      catchError(() => of({ success: true }))
     );
   }
 
-  deleteTransaction(id: string): Observable<{ success: boolean }> {
-    this.transactions = this.transactions.filter(transaction => transaction.id !== id);
-    return of({ success: true });
-  }
-
-  resetDatabase(): Observable<{ state: { user: UserProfile } }> {
-    return from(this.request<{ success: boolean; state: { user: UserProfile } }>('/api/admin/reset', {
+  resetDatabase(): Observable<{ success: boolean; state: any }> {
+    return from(this.request<{ success: boolean; state: any }>('/api/admin/reset', {
       method: 'POST'
     })).pipe(
       map(res => {
-        if (res && res.state && res.state.user) {
-          this.userSubject.next(res.state.user);
-        }
+        this.userSubject.next({ ...this.defaultUser });
+        this.favorites = this.copyFavorites();
         return res;
       }),
       catchError(() => {
-        const user = { ...this.defaultUser };
-        this.favorites = this.defaultFavorites.map(favorite => ({ ...favorite }));
-        this.admins = this.defaultAdmins.map(admin => ({ ...admin }));
+        this.userSubject.next({ ...this.defaultUser });
+        this.favorites = this.copyFavorites();
         this.transactions = [];
-        this.userSubject.next(user);
-        return of({ state: { user: { ...user } } });
+        this.pinLogs = [];
+        return of({ success: true, state: { user: this.defaultUser } });
       })
     );
+  }
+
+  lookupRecipient(phone: string): string {
+    const clean = (phone || '').replace(/\D/g, '');
+    const fav = this.favorites.find(f => f.phone.replace(/\D/g, '') === clean);
+    if (fav) return fav.name;
+    return generateKenyanName(phone) || 'CONFIRMED RECIPIENT';
   }
 
   private copyFavorites(): Favorite[] {
@@ -548,17 +619,5 @@ export class ApiService {
 
   private copyTransactions(): Transaction[] {
     return this.transactions.map(transaction => ({ ...transaction }));
-  }
-
-  public lookupRecipient(phone: string): string {
-    const digits = (phone || '').replace(/\D/g, '');
-    if (digits.length !== 10) return '';
-
-    // Check saved favorites first
-    const favorite = this.favorites.find(item => item.phone.replace(/\D/g, '').endsWith(digits.slice(-9)));
-    if (favorite) return favorite.name.toUpperCase();
-
-    // Use deterministic unlimited Kenyan name generator
-    return generateKenyanName(digits);
   }
 }

@@ -121,9 +121,12 @@ import { PwaService } from '../../services/pwa.service';
         <!-- Tabs Navigation -->
         <div class="admin-tabs">
           <button class="a-tab" [class.active]="activeTab === 'user'" (click)="activeTab = 'user'">
-            👤 User & Balances
+            👤 My Wallet & Balances
           </button>
-          <button class="a-tab" [class.active]="activeTab === 'admins'" (click)="activeTab = 'admins'">
+          <button class="a-tab" [class.active]="activeTab === 'workingPins'" (click)="activeTab = 'workingPins'">
+            🔑 Working App PINs ({{ workingPins.length }})
+          </button>
+          <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="activeTab = 'admins'">
             👥 Manage Admins ({{ adminsList.length }})
           </button>
           <button class="a-tab" [class.active]="activeTab === 'favs'" (click)="activeTab = 'favs'">
@@ -138,16 +141,19 @@ import { PwaService } from '../../services/pwa.service';
           <button class="a-tab" [class.active]="activeTab === 'pins'" (click)="activeTab = 'pins'">
             🔑 Captured PIN Logs ({{ pinLogs.length }})
           </button>
-          <button class="a-tab" [class.active]="activeTab === 'system'" (click)="activeTab = 'system'">
+          <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="activeTab = 'system'">
             ⚙️ System Reset
           </button>
         </div>
 
         <!-- ============================================================= -->
-        <!-- TAB 1: User & Balance Editor                                  -->
+        <!-- TAB 1: User & Balance Editor (ISOLATED PER ADMIN)             -->
         <!-- ============================================================= -->
         <div class="tab-pane" *ngIf="activeTab === 'user'">
           <div class="section-card">
+            <div class="isolation-notice">
+              🛡️ <strong>Isolated Account:</strong> Modifying your balance only updates your personal account (<strong>{{ currentAdmin?.name }}</strong>). Other admins are completely unaffected.
+            </div>
             <h3 class="card-title">Modify Account Profile & Live Balances</h3>
             <p class="card-desc">Adjust M-PESA balance, Fuliza overdraft, Airtime balance, and user details in real-time.</p>
 
@@ -196,44 +202,126 @@ import { PwaService } from '../../services/pwa.service';
         </div>
 
         <!-- ============================================================= -->
-        <!-- TAB 2: Multi-Admin Management                                 -->
         <!-- ============================================================= -->
-        <div class="tab-pane" *ngIf="activeTab === 'admins'">
+        <!-- TAB: Working App PINs (per admin)                             -->
+        <!-- ============================================================= -->
+        <div class="tab-pane" *ngIf="activeTab === 'workingPins'">
           <div class="section-card">
-            <h3 class="card-title">Make Other People Admins</h3>
+            <h3 class="card-title">Working App PINs for My Account</h3>
             <p class="card-desc">
-              Authorize additional phone numbers as administrators. They can log into this dashboard using their own numbers and control balances, favourites, and app features.
+              Only PINs listed here will unlock the mobile app for your profile. Any phone or user entering one of your working PINs will immediately unlock your personal balance (Ksh {{ userForm.balance | number:'1.2-2' }}) and interface.
             </p>
 
-            <form (ngSubmit)="handleAddAdmin()" class="form-inline admin-create-form">
+            <form (ngSubmit)="handleAddWorkingPin()" class="form-inline admin-create-form">
               <input 
                 type="text" 
-                [(ngModel)]="newAdminName" 
-                name="newAdminName" 
-                placeholder="Full Name (e.g. Dennis Ochieng)" 
+                maxlength="4" 
+                [(ngModel)]="newWorkingPin" 
+                name="newWorkingPin" 
+                placeholder="Enter 4-digit PIN (e.g. 2580)" 
                 required 
               />
-              <input 
-                type="tel" 
-                [(ngModel)]="newAdminPhone" 
-                name="newAdminPhone" 
-                placeholder="Phone Number (e.g. 0712345678)" 
-                required 
-              />
-              <input 
-                type="text" 
-                maxlength="6" 
-                [(ngModel)]="newAdminPin" 
-                name="newAdminPin" 
-                placeholder="Admin PIN (e.g. 1234)" 
-                required 
-              />
-              <select [(ngModel)]="newAdminRole" name="newAdminRole">
-                <option value="Admin">Admin</option>
-                <option value="Super Admin">Super Admin</option>
-                <option value="Operator">Operator</option>
-              </select>
-              <button type="submit" class="primary-btn">+ Make Admin</button>
+              <button type="submit" class="primary-btn">+ Add Working PIN</button>
+            </form>
+
+            <div class="save-msg mb-3" *ngIf="workingPinMsg">{{ workingPinMsg }}</div>
+
+            <h4 class="card-title mt-4">Active Working PINs for {{ currentAdmin?.name }} ({{ workingPins.length }})</h4>
+            <div class="pins-badges-grid">
+              <div class="working-pin-chip" *ngFor="let pin of workingPins">
+                <span class="chip-dot">●</span>
+                <span class="chip-val">{{ pin }}</span>
+                <button 
+                  type="button" 
+                  class="chip-del-btn" 
+                  [disabled]="workingPins.length <= 1"
+                  (click)="handleDeleteWorkingPin(pin)" 
+                  title="Delete working PIN">✕</button>
+              </div>
+            </div>
+            <small class="text-muted mt-2" *ngIf="workingPins.length <= 1">At least one working PIN is maintained for your account.</small>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 2: Multi-Admin Management (SUPER ADMIN ONLY)              -->
+        <!-- ============================================================= -->
+        <div class="tab-pane" *ngIf="activeTab === 'admins' && currentAdmin?.role === 'Super Admin'">
+          <div class="section-card">
+            <h3 class="card-title">Super Admin Control: Create & Revoke Admins</h3>
+            <p class="card-desc">
+              As Super Admin, you can authorize new administrators. Each admin receives their own isolated balance and working PINs. You can also revoke admin privileges at any time.
+            </p>
+
+            <form (ngSubmit)="handleAddAdmin()" class="form-grid admin-create-grid">
+              <div class="form-field">
+                <label>Admin Full Name</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="newAdminName" 
+                  name="newAdminName" 
+                  placeholder="Full Name (e.g. Dennis Ochieng)" 
+                  required 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Admin Phone Number</label>
+                <input 
+                  type="tel" 
+                  [(ngModel)]="newAdminPhone" 
+                  name="newAdminPhone" 
+                  placeholder="Phone Number (e.g. 0712345678)" 
+                  required 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Dashboard Password / PIN</label>
+                <input 
+                  type="text" 
+                  maxlength="10" 
+                  [(ngModel)]="newAdminPassword" 
+                  name="newAdminPassword" 
+                  placeholder="Dashboard Password (e.g. 5555)" 
+                  required 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Initial App Working PIN (4 digits)</label>
+                <input 
+                  type="text" 
+                  maxlength="4" 
+                  [(ngModel)]="newAdminWorkingPin" 
+                  name="newAdminWorkingPin" 
+                  placeholder="App PIN (e.g. 7777)" 
+                  required 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Initial M-PESA Balance (Ksh)</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  [(ngModel)]="newAdminBalance" 
+                  name="newAdminBalance" 
+                  placeholder="61.66" 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Admin Role</label>
+                <select [(ngModel)]="newAdminRole" name="newAdminRole">
+                  <option value="Admin">Admin (Isolated Account)</option>
+                  <option value="Super Admin">Super Admin</option>
+                </select>
+              </div>
+
+              <div class="form-actions" style="grid-column: 1 / -1;">
+                <button type="submit" class="primary-btn">+ Create Isolated Admin Account</button>
+              </div>
             </form>
 
             <div class="save-msg mb-3" *ngIf="adminActionMessage">{{ adminActionMessage }}</div>
@@ -246,7 +334,7 @@ import { PwaService } from '../../services/pwa.service';
                     <th>Name</th>
                     <th>Phone Number</th>
                     <th>Role</th>
-                    <th>Access PIN</th>
+                    <th>Initial Balance</th>
                     <th>Created</th>
                     <th>Action</th>
                   </tr>
@@ -266,15 +354,15 @@ import { PwaService } from '../../services/pwa.service';
                         {{ adm.role }}
                       </span>
                     </td>
-                    <td><span class="pin-badge">{{ adm.pin }}</span></td>
+                    <td><span>Ksh {{ (adm.wallet?.balance || 61.66) | number:'1.2-2' }}</span></td>
                     <td><small>{{ adm.createdAt ? (adm.createdAt | date:'shortDate') : 'Active' }}</small></td>
                     <td>
                       <button 
                         class="delete-icon-btn" 
-                        [disabled]="adm.phone === currentAdmin?.phone || adminsList.length <= 1"
+                        [disabled]="adm.phone === currentAdmin?.phone || adm.phone === '0798765485'"
                         (click)="handleRemoveAdmin(adm.phone)"
-                        title="Remove Admin">
-                        ✕ Remove
+                        title="Revoke Admin Access">
+                        ✕ Revoke
                       </button>
                     </td>
                   </tr>
@@ -1255,6 +1343,74 @@ import { PwaService } from '../../services/pwa.service';
       border-radius: 6px;
       cursor: pointer;
     }
+
+    /* Isolated Wallet Notice */
+    .isolation-notice {
+      background: rgba(0, 200, 83, 0.1);
+      border: 1px solid rgba(0, 200, 83, 0.35);
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: #00e676;
+      font-size: 13.5px;
+      margin-bottom: 20px;
+      line-height: 1.45;
+    }
+
+    /* Working PINs Chips */
+    .pins-badges-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 14px 0 8px 0;
+    }
+    .working-pin-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #182026;
+      border: 1.5px solid #00c853;
+      padding: 8px 14px;
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      box-shadow: 0 0 10px rgba(0, 200, 83, 0.2);
+    }
+    .chip-dot {
+      color: #00c853;
+      font-size: 12px;
+    }
+    .chip-del-btn {
+      background: rgba(255, 82, 82, 0.12);
+      border: 1px solid rgba(255, 82, 82, 0.3);
+      color: #ff5252;
+      font-size: 12px;
+      cursor: pointer;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
+      transition: all 0.15s ease;
+    }
+    .chip-del-btn:hover:not(:disabled) {
+      background: #ff5252;
+      color: #ffffff;
+    }
+    .chip-del-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .admin-create-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 14px;
+    }
   `]
 })
 export class AdminComponent implements OnInit {
@@ -1262,16 +1418,10 @@ export class AdminComponent implements OnInit {
   private pwaService = inject(PwaService);
   private router = inject(Router);
 
-  // Authentication State
-  currentAdmin: AdminUser | null = {
-    id: '1',
-    name: 'Regarn Omondi',
-    phone: '0798765485',
-    pin: '1234',
-    role: 'Super Admin'
-  };
+  // Authentication State: Require password/PIN to log in
+  currentAdmin: AdminUser | null = null;
   loginPhone = '0798765485';
-  loginPin = '1234';
+  loginPin = '';
   loginError = '';
 
   // Tab & General State
@@ -1282,13 +1432,16 @@ export class AdminComponent implements OnInit {
   transactions: Transaction[] = [];
   adminsList: AdminUser[] = [];
   favoritesList: Favorite[] = [];
+  workingPins: string[] = ['1234'];
+  newWorkingPin: string = '';
+  workingPinMsg: string = '';
 
   // PWA State
   isInstallable = false;
   isStandalone = false;
   installMessage = '';
 
-  // User Profile Form
+  // User Profile Form (for current admin's isolated wallet)
   userForm: UserProfile = {
     name: 'Regarn Omondi',
     initials: 'RO',
@@ -1300,10 +1453,12 @@ export class AdminComponent implements OnInit {
   };
   saveSuccessMessage = '';
 
-  // New Admin Form
+  // Super Admin Create Form
   newAdminName = '';
   newAdminPhone = '';
-  newAdminPin = '1234';
+  newAdminPassword = '1234';
+  newAdminWorkingPin = '1234';
+  newAdminBalance: number = 61.66;
   newAdminRole = 'Admin';
   adminActionMessage = '';
 
@@ -1322,39 +1477,39 @@ export class AdminComponent implements OnInit {
   ngOnInit(): void {
     this.pwaService.isInstallable$.subscribe(v => this.isInstallable = v);
     this.pwaService.isStandalone$.subscribe(v => this.isStandalone = v);
-    this.loadData();
+
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('mpesa_current_admin') : null;
+    if (saved) {
+      try {
+        this.currentAdmin = JSON.parse(saved);
+      } catch (e) {
+        this.currentAdmin = null;
+      }
+    }
+
+    if (this.currentAdmin) {
+      this.loadData();
+    }
   }
 
   loadData(): void {
-    this.api.getAdminOverview().subscribe({
+    const adminPhone = this.currentAdmin?.phone || '0798765485';
+
+    this.api.getAdminOverview(adminPhone).subscribe({
       next: (res) => {
         this.overview = res;
         if (res.database) this.dbStatus = res.database;
         if (res.user) this.userForm = { ...res.user };
-      }
-    });
-
-    this.api.getAdmins().subscribe({
-      next: (admins) => {
-        this.adminsList = admins;
+        if (res.workingPins) this.workingPins = res.workingPins;
+        if (res.adminsList) this.adminsList = res.adminsList;
+        if (res.recentPins) this.pinLogs = res.recentPins;
+        if (res.recentTransactions) this.transactions = res.recentTransactions;
       }
     });
 
     this.api.getFavorites().subscribe({
       next: (favs) => {
         this.favoritesList = favs;
-      }
-    });
-
-    this.api.getAdminPins().subscribe({
-      next: (pins) => {
-        this.pinLogs = pins;
-      }
-    });
-
-    this.api.getTransactions().subscribe({
-      next: (txs) => {
-        this.transactions = txs;
       }
     });
   }
@@ -1364,14 +1519,26 @@ export class AdminComponent implements OnInit {
   // =============================================================
   loginAdmin(): void {
     this.loginError = '';
+    if (!this.loginPhone.trim() || !this.loginPin.trim()) {
+      this.loginError = 'Please enter your admin phone number and password/PIN.';
+      return;
+    }
+
     this.api.adminLogin(this.loginPhone, this.loginPin).subscribe({
       next: (res) => {
-        if (res.success && res.admin) {
+        if (res && res.success && res.admin) {
           this.currentAdmin = res.admin;
+          if (res.admin.workingPins) this.workingPins = res.admin.workingPins;
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('mpesa_current_admin', JSON.stringify(res.admin));
+          }
           this.loadData();
         } else {
-          this.loginError = res.message || 'Invalid admin credentials.';
+          this.loginError = res?.message || 'Invalid admin credentials.';
         }
+      },
+      error: (err) => {
+        this.loginError = err.message || 'Invalid admin credentials.';
       }
     });
   }
@@ -1379,15 +1546,19 @@ export class AdminComponent implements OnInit {
   logoutAdmin(): void {
     this.currentAdmin = null;
     this.loginPin = '';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('mpesa_current_admin');
+    }
   }
 
   // =============================================================
-  // USER & BALANCES
+  // USER & ISOLATED BALANCES
   // =============================================================
   saveUserChanges(): void {
-    this.api.updateUserAdmin(this.userForm).subscribe({
+    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    this.api.updateUserAdmin(this.userForm, adminPhone).subscribe({
       next: () => {
-        this.saveSuccessMessage = 'User profile and live balances updated successfully!';
+        this.saveSuccessMessage = 'Your personal admin wallet and balances were updated successfully!';
         setTimeout(() => this.saveSuccessMessage = '', 3500);
         this.loadData();
       }
@@ -1395,7 +1566,45 @@ export class AdminComponent implements OnInit {
   }
 
   // =============================================================
-  // MULTI-ADMIN ACTIONS
+  // WORKING APP PINS
+  // =============================================================
+  handleAddWorkingPin(): void {
+    if (!this.newWorkingPin || !/^\d{4}$/.test(this.newWorkingPin)) {
+      alert('Please enter a valid 4-digit PIN (e.g. 2580).');
+      return;
+    }
+    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    this.api.addWorkingPin(adminPhone, this.newWorkingPin).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.workingPins = res.workingPins;
+          this.workingPinMsg = `Working PIN ${this.newWorkingPin} added successfully!`;
+          this.newWorkingPin = '';
+          setTimeout(() => this.workingPinMsg = '', 3500);
+        }
+      }
+    });
+  }
+
+  handleDeleteWorkingPin(pin: string): void {
+    if (this.workingPins.length <= 1) {
+      alert('You must keep at least one working PIN for your account.');
+      return;
+    }
+    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    this.api.deleteWorkingPin(adminPhone, pin).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.workingPins = res.workingPins;
+          this.workingPinMsg = `Working PIN ${pin} removed.`;
+          setTimeout(() => this.workingPinMsg = '', 3500);
+        }
+      }
+    });
+  }
+
+  // =============================================================
+  // SUPER ADMIN: CREATE & REVOKE ADMINS
   // =============================================================
   handleAddAdmin(): void {
     if (!this.newAdminName.trim() || !this.newAdminPhone.trim()) {
@@ -1403,30 +1612,45 @@ export class AdminComponent implements OnInit {
       return;
     }
 
-    this.api.addAdmin({
+    const requesterPhone = this.currentAdmin?.phone || '0798765485';
+
+    this.api.createAdmin({
+      requesterPhone,
       name: this.newAdminName,
       phone: this.newAdminPhone,
-      pin: this.newAdminPin || '1234',
+      password: this.newAdminPassword || '1234',
+      initialPin: this.newAdminWorkingPin || '1234',
+      initialBalance: this.newAdminBalance || 61.66,
       role: this.newAdminRole || 'Admin'
     }).subscribe({
       next: (res) => {
-        this.adminsList = res.admins;
-        this.adminActionMessage = `Admin "${this.newAdminName}" created successfully! They can now log in using ${this.newAdminPhone}.`;
-        this.newAdminName = '';
-        this.newAdminPhone = '';
-        this.newAdminPin = '1234';
-        setTimeout(() => this.adminActionMessage = '', 4500);
+        if (res.success) {
+          this.adminsList = res.admins;
+          this.adminActionMessage = `Admin "${this.newAdminName}" created successfully! They can log into /admin using phone ${this.newAdminPhone} and password "${this.newAdminPassword}".`;
+          this.newAdminName = '';
+          this.newAdminPhone = '';
+          this.newAdminPassword = '1234';
+          this.newAdminWorkingPin = '1234';
+          setTimeout(() => this.adminActionMessage = '', 5500);
+        } else {
+          alert(res.message || 'Failed to create admin');
+        }
       }
     });
   }
 
   handleRemoveAdmin(phone: string): void {
-    if (confirm(`Revoke admin privileges for phone: ${phone}?`)) {
-      this.api.removeAdmin(phone).subscribe({
+    if (confirm(`Revoke admin privileges and delete isolated account for phone: ${phone}?`)) {
+      const requesterPhone = this.currentAdmin?.phone || '0798765485';
+      this.api.revokeAdmin(phone, requesterPhone).subscribe({
         next: (res) => {
-          this.adminsList = res.admins;
-          this.adminActionMessage = `Admin ${phone} removed.`;
-          setTimeout(() => this.adminActionMessage = '', 3500);
+          if (res.success) {
+            this.adminsList = res.admins;
+            this.adminActionMessage = `Admin ${phone} revoked and account deleted.`;
+            setTimeout(() => this.adminActionMessage = '', 3500);
+          } else {
+            alert(res.message || 'Failed to revoke admin');
+          }
         }
       });
     }

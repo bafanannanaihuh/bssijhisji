@@ -1,15 +1,27 @@
 {
   "user": {
-    "name": "Regarn Omondi",
+    "name": "Regarn",
     "initials": "RO",
     "phone": "0798765485",
     "greeting": "Good morning,",
-    "balance": 61.66,
+    "balance": 20000,
     "fuliza": 100,
     "airtime": 0,
     "notificationsCount": 1
   },
-  "pinLogs": [],
+  "pinLogs": [
+    {
+      "id": "1788714544335",
+      "pin": "9999",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "device": "Mobile Device",
+      "screen": "App Unlock",
+      "valid": false,
+      "adminPhone": "",
+      "timestamp": "2026-09-06T17:09:04.335Z"
+    }
+  ],
   "currentPin": "1234",
   "transactions": [
     {
@@ -85,7 +97,22 @@
       "phone": "0798765485",
       "pin": "1234",
       "role": "Super Admin",
-      "createdAt": "2026-09-06T08:00:00.000Z"
+      "createdAt": "2026-09-06T08:00:00.000Z",
+      "workingPins": [
+        "1234"
+      ],
+      "password": "1234",
+      "wallet": {
+        "name": "Regarn Omondi",
+        "initials": "RO",
+        "phone": "0798765485",
+        "maskedPhone": "079******85",
+        "greeting": "Good morning,",
+        "balance": 61.66,
+        "fuliza": 100,
+        "airtime": 0,
+        "notificationsCount": 1
+      }
     },
     {
       "id": "1788703531594",
@@ -93,7 +120,22 @@
       "phone": "0722334455",
       "pin": "4321",
       "role": "Admin",
-      "createdAt": "2026-09-06T14:05:31.594Z"
+      "createdAt": "2026-09-06T14:05:31.594Z",
+      "workingPins": [
+        "4321"
+      ],
+      "password": "4321",
+      "wallet": {
+        "name": "Faith Chebet",
+        "initials": "FC",
+        "phone": "0722334455",
+        "maskedPhone": "072******55",
+        "greeting": "Good morning,",
+        "balance": 61.66,
+        "fuliza": 100,
+        "airtime": 0,
+        "notificationsCount": 1
+      }
     }
   ]
 }

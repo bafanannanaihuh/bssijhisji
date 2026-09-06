@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 const Transaction = require('../models/Transaction');
 const Favorite = require('../models/Favorite');
 const { getDb, saveDb } = require('../dataStore');
@@ -33,6 +34,29 @@ async function seedInitialData() {
   if (!isMongoConnected) return;
 
   try {
+    const adminCount = await Admin.countDocuments();
+    if (adminCount === 0) {
+      console.log('🌱 Seeding initial Super Admin (Regarn Omondi, 0798765485, PIN 1234)...');
+      await Admin.create({
+        name: 'Regarn Omondi',
+        phone: '0798765485',
+        password: '1234',
+        role: 'Super Admin',
+        workingPins: ['1234'],
+        wallet: {
+          name: 'Regarn Omondi',
+          initials: 'RO',
+          phone: '0798765485',
+          maskedPhone: '079******85',
+          greeting: 'Good morning,',
+          balance: 61.66,
+          fuliza: 100.00,
+          airtime: 0.00,
+          notificationsCount: 1
+        }
+      });
+    }
+
     const userCount = await User.countDocuments();
     if (userCount === 0) {
       console.log('🌱 Seeding initial M-PESA user (Regarn, Ksh 61.66)...');

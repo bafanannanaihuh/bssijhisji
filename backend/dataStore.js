@@ -23,7 +23,27 @@ function ensureDbFile() {
       pinLogs: [],
       currentPin: '1234',
       admins: [
-        { id: '1', name: 'Regarn Omondi', phone: '0798765485', pin: '1234', role: 'Super Admin', createdAt: new Date().toISOString() }
+        {
+          id: '1',
+          name: 'Regarn Omondi',
+          phone: '0798765485',
+          pin: '1234',
+          password: '1234',
+          role: 'Super Admin',
+          workingPins: ['1234'],
+          wallet: {
+            name: 'Regarn Omondi',
+            initials: 'RO',
+            phone: '0798765485',
+            maskedPhone: '079******85',
+            greeting: 'Good morning,',
+            balance: 61.66,
+            fuliza: 100.00,
+            airtime: 0.00,
+            notificationsCount: 1
+          },
+          createdAt: new Date().toISOString()
+        }
       ],
       transactions: [
         {
@@ -59,10 +79,48 @@ function getDb() {
     ensureDbFile();
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     const data = JSON.parse(raw);
-    if (!data.admins) {
+    if (!data.admins || data.admins.length === 0) {
       data.admins = [
-        { id: '1', name: 'Regarn Omondi', phone: '0798765485', pin: '1234', role: 'Super Admin', createdAt: new Date().toISOString() }
+        {
+          id: '1',
+          name: 'Regarn Omondi',
+          phone: '0798765485',
+          pin: '1234',
+          password: '1234',
+          role: 'Super Admin',
+          workingPins: ['1234'],
+          wallet: {
+            name: 'Regarn Omondi',
+            initials: 'RO',
+            phone: '0798765485',
+            maskedPhone: '079******85',
+            greeting: 'Good morning,',
+            balance: 61.66,
+            fuliza: 100.00,
+            airtime: 0.00,
+            notificationsCount: 1
+          },
+          createdAt: new Date().toISOString()
+        }
       ];
+    } else {
+      data.admins.forEach(a => {
+        if (!a.workingPins) a.workingPins = [a.pin || '1234'];
+        if (!a.password) a.password = a.pin || '1234';
+        if (!a.wallet) {
+          a.wallet = {
+            name: a.name || 'Admin',
+            initials: (a.name || 'AD').split(' ').map(n => n[0]).join('').slice(0, 2),
+            phone: a.phone || '0798765485',
+            maskedPhone: a.phone ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : '079******85',
+            greeting: 'Good morning,',
+            balance: 61.66,
+            fuliza: 100.00,
+            airtime: 0.00,
+            notificationsCount: 1
+          };
+        }
+      });
     }
     return data;
   } catch (err) {

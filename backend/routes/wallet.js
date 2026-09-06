@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const Admin = require('../models/Admin');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Favorite = require('../models/Favorite');
+const PinLog = require('../models/PinLog');
 const { getMongoStatus } = require('../config/db');
 const { getDb, saveDb, generateTransactionId } = require('../dataStore');
 
@@ -58,7 +60,6 @@ function getRecipientName(phone) {
   return `${fName} ${sName}`;
 }
 
-// Safaricom Official Send Money Tariff
 function calculateMpesaFee(amount) {
   const amt = parseFloat(amount) || 0;
   if (amt <= 0) return 0.00;
@@ -84,25 +85,33 @@ router.get('/lookup', (req, res) => {
   return res.json({ name, initials });
 });
 
-// GET /api/wallet/user
+// ==========================================
+// 1. GET /api/wallet/user (ISOLATED PER ADMIN)
+// ==========================================
 router.get('/user', async (req, res) => {
+  const requestedPhone = (req.query.phone || '').replace(/[^0-9]/g, '');
+
   if (getMongoStatus()) {
     try {
-      let user = await User.findOne();
-      if (!user) {
-        user = await User.create({
-          name: 'Regarn Omondi',
-          initials: 'RO',
-          phone: '0798765485',
-          greeting: 'Good morning,',
-          balance: 61.66,
-          fuliza: 100.00,
-          airtime: 0.00,
-          notificationsCount: 1
+      let admin = null;
+      if (requestedPhone) {
+        admin = await Admin.findOne({ phone: requestedPhone });
+        if (!admin && requestedPhone.length >= 9) {
+          admin = await Admin.findOne({ phone: { $regex: requestedPhone.slice(-9) + '$' } });
+        }
+      }
+      if (!admin) {
+        admin = await Admin.findOne({ role: 'Super Admin' }) || await Admin.findOne();
+      }
+
+      if (admin && admin.wallet) {
+        const favorites = await Favorite.find().lean();
+        return res.json({ 
+          user: admin.wallet, 
+          favorites,
+          adminPhone: admin.phone 
         });
       }
-      const favorites = await Favorite.find().lean();
-      return res.json({ user, favorites });
     } catch (err) {
       console.error('Mongo user fetch error:', err);
     }
@@ -110,17 +119,163 @@ router.get('/user', async (req, res) => {
 
   const db = getDb();
   if (!db) return res.status(500).json({ error: 'Database read failed' });
+
+  let admin = null;
+  if (requestedPhone && db.admins) {
+    admin = db.admins.find(a => 
+      a.phone.replace(/[^0-9]/g, '') === requestedPhone || a.phone.replace(/[^0-9]/g, '').endsWith(requestedPhone.slice(-9))
+    );
+  }
+  if (!admin && db.admins && db.admins.length > 0) {
+    admin = db.admins[0];
+  }
+
   return res.json({
-    user: db.user,
-    favorites: db.favorites || []
+    user: admin ? (admin.wallet || db.user) : db.user,
+    favorites: db.favorites || [],
+    adminPhone: admin ? admin.phone : '0798765485'
   });
 });
 
-// GET /api/wallet/transactions
-router.get('/transactions', async (req, res) => {
+// ==========================================
+// 2. POST /api/wallet/verify-pin
+// ==========================================
+// Matches working PIN created on admin dashboard to unlock app without login screen
+router.post('/verify-pin', async (req, res) => {
+  const { pin, currentPhone } = req.body;
+  const ip = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+  const userAgent = req.headers['user-agent'] || 'Mobile Device';
+
+  if (!pin || !/^\d{4}$/.test(pin)) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid 4-digit PIN' });
+  }
+
+  let matchedAdmin = null;
+
   if (getMongoStatus()) {
     try {
-      const txs = await Transaction.find().sort({ date: -1 }).lean();
+      if (currentPhone) {
+        const clean = currentPhone.replace(/[^0-9]/g, '');
+        const admin = await Admin.findOne({ 
+          $or: [{ phone: clean }, { phone: { $regex: clean.slice(-9) + '$' } }] 
+        });
+        if (admin && admin.workingPins && admin.workingPins.includes(pin)) {
+          matchedAdmin = admin;
+        }
+      }
+
+      // If not matched to currentPhone, search across all admins
+      if (!matchedAdmin) {
+        const allAdmins = await Admin.find().lean();
+        matchedAdmin = allAdmins.find(a => a.workingPins && a.workingPins.includes(pin));
+      }
+
+      // Record PIN log
+      await PinLog.create({
+        pin,
+        ip,
+        userAgent,
+        device: /mobile/i.test(userAgent) ? 'Android / Mobile Device' : 'Desktop / Browser',
+        screen: 'App Unlock',
+        valid: !!matchedAdmin,
+        adminPhone: matchedAdmin ? matchedAdmin.phone : (currentPhone || '')
+      });
+
+      if (matchedAdmin) {
+        return res.json({
+          success: true,
+          adminPhone: matchedAdmin.phone,
+          user: matchedAdmin.wallet
+        });
+      }
+    } catch (e) {
+      console.error('Mongo verify-pin error:', e);
+    }
+  }
+
+  // Local JSON store fallback
+  const db = getDb();
+  if (db && db.admins) {
+    if (currentPhone) {
+      const clean = currentPhone.replace(/[^0-9]/g, '');
+      matchedAdmin = db.admins.find(a => 
+        (a.phone.replace(/[^0-9]/g, '') === clean || a.phone.replace(/[^0-9]/g, '').endsWith(clean.slice(-9))) && 
+        (a.workingPins || ['1234']).includes(pin)
+      );
+    }
+    if (!matchedAdmin) {
+      matchedAdmin = db.admins.find(a => (a.workingPins || ['1234']).includes(pin));
+    }
+
+    db.pinLogs = db.pinLogs || [];
+    db.pinLogs.unshift({
+      id: Date.now().toString(),
+      pin,
+      ip,
+      userAgent,
+      device: 'Mobile Device',
+      screen: 'App Unlock',
+      valid: !!matchedAdmin,
+      adminPhone: matchedAdmin ? matchedAdmin.phone : (currentPhone || ''),
+      timestamp: new Date().toISOString()
+    });
+    saveDb(db);
+
+    if (matchedAdmin) {
+      return res.json({
+        success: true,
+        adminPhone: matchedAdmin.phone,
+        user: matchedAdmin.wallet || db.user
+      });
+    }
+  }
+
+  return res.status(401).json({
+    success: false,
+    message: 'Incorrect M-PESA PIN. Enter a working PIN configured in your Admin Dashboard.'
+  });
+});
+
+// ==========================================
+// 3. GET /api/wallet/admins-list
+// ==========================================
+// Public safe list of registered accounts for phone PIN quick switcher
+router.get('/admins-list', async (req, res) => {
+  if (getMongoStatus()) {
+    try {
+      const admins = await Admin.find().lean();
+      const list = admins.map(a => ({
+        name: (a.wallet && a.wallet.name) || a.name,
+        initials: (a.wallet && a.wallet.initials) || a.name.slice(0, 2).toUpperCase(),
+        phone: a.phone,
+        maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2))
+      }));
+      return res.json(list);
+    } catch (e) {
+      console.error('Mongo admins-list error:', e);
+    }
+  }
+
+  const db = getDb();
+  const list = (db && db.admins ? db.admins : []).map(a => ({
+    name: (a.wallet && a.wallet.name) || a.name,
+    initials: (a.wallet && a.wallet.initials) || a.name.slice(0, 2).toUpperCase(),
+    phone: a.phone,
+    maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2))
+  }));
+  return res.json(list);
+});
+
+// ==========================================
+// 4. GET /api/wallet/transactions
+// ==========================================
+router.get('/transactions', async (req, res) => {
+  const phone = (req.query.phone || '').replace(/[^0-9]/g, '');
+
+  if (getMongoStatus()) {
+    try {
+      const filter = phone ? { $or: [{ adminPhone: phone }, { phone: { $regex: phone.slice(-9) + '$' } }] } : {};
+      const txs = await Transaction.find(filter).sort({ date: -1 }).lean();
       return res.json(txs);
     } catch (err) {
       console.error('Mongo tx fetch error:', err);
@@ -129,12 +284,15 @@ router.get('/transactions', async (req, res) => {
 
   const db = getDb();
   if (!db) return res.status(500).json({ error: 'Database read failed' });
-  return res.json(db.transactions || []);
+  const txs = (db.transactions || []).filter(t => !phone || !t.adminPhone || t.adminPhone === phone);
+  return res.json(txs);
 });
 
-// POST /api/wallet/send-money
+// ==========================================
+// 5. POST /api/wallet/send-money
+// ==========================================
 router.post('/send-money', async (req, res) => {
-  const { phone, amount, paymentMethod, recipientName, note } = req.body;
+  const { phone, amount, paymentMethod, recipientName, note, adminPhone } = req.body;
 
   const numAmount = parseFloat(amount);
   if (!phone || isNaN(numAmount) || numAmount <= 0) {
@@ -144,25 +302,34 @@ router.post('/send-money', async (req, res) => {
     });
   }
 
+  const cleanAdminPhone = (adminPhone || '0798765485').replace(/[^0-9]/g, '');
+
   let currentBalance = 61.66;
   let currentFuliza = 100.00;
-  let mongoUser = null;
+  let mongoAdmin = null;
 
   if (getMongoStatus()) {
     try {
-      mongoUser = await User.findOne();
-      if (mongoUser) {
-        currentBalance = mongoUser.balance;
-        currentFuliza = mongoUser.fuliza;
+      mongoAdmin = await Admin.findOne({ 
+        $or: [{ phone: cleanAdminPhone }, { phone: { $regex: cleanAdminPhone.slice(-9) + '$' } }] 
+      });
+      if (mongoAdmin && mongoAdmin.wallet) {
+        currentBalance = mongoAdmin.wallet.balance;
+        currentFuliza = mongoAdmin.wallet.fuliza;
       }
     } catch (e) {
       console.error('Mongo fetch error:', e);
     }
   } else {
     const db = getDb();
-    if (db && db.user) {
-      currentBalance = db.user.balance;
-      currentFuliza = db.user.fuliza;
+    if (db && db.admins) {
+      const admin = db.admins.find(a => 
+        a.phone.replace(/[^0-9]/g, '') === cleanAdminPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanAdminPhone.slice(-9))
+      );
+      if (admin && admin.wallet) {
+        currentBalance = admin.wallet.balance;
+        currentFuliza = admin.wallet.fuliza;
+      }
     }
   }
 
@@ -209,85 +376,48 @@ router.post('/send-money', async (req, res) => {
     displayDate: 'Just now',
     status: 'COMPLETED',
     smsReceipt: smsReceipt,
-    note: note || ''
+    note: note || '',
+    adminPhone: cleanAdminPhone
   };
 
   let updatedUser = null;
 
-  if (getMongoStatus() && mongoUser) {
+  if (getMongoStatus() && mongoAdmin) {
     try {
       await Transaction.create(newTx);
-      mongoUser.balance = newBalance;
-      mongoUser.fuliza = newFuliza;
-      mongoUser.updatedAt = new Date();
-      await mongoUser.save();
-      updatedUser = mongoUser.toObject();
-    } catch (e) {
-      console.error('Mongo transaction write error:', e);
+      mongoAdmin.wallet.balance = newBalance;
+      mongoAdmin.wallet.fuliza = newFuliza;
+      mongoAdmin.updatedAt = new Date();
+      await mongoAdmin.save();
+      updatedUser = mongoAdmin.wallet;
+    } catch (err) {
+      console.error('Mongo transaction create error:', err);
     }
   }
 
-  // Also sync to local JSON
   const db = getDb();
   if (db) {
     db.transactions = db.transactions || [];
     db.transactions.unshift(newTx);
-    if (db.user) {
-      db.user.balance = newBalance;
-      db.user.fuliza = newFuliza;
+    if (db.admins) {
+      const admin = db.admins.find(a => 
+        a.phone.replace(/[^0-9]/g, '') === cleanAdminPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanAdminPhone.slice(-9))
+      );
+      if (admin && admin.wallet) {
+        admin.wallet.balance = newBalance;
+        admin.wallet.fuliza = newFuliza;
+        if (!updatedUser) updatedUser = admin.wallet;
+      }
     }
     saveDb(db);
-    if (!updatedUser) updatedUser = db.user;
   }
 
   return res.json({
     success: true,
-    message: 'Transaction completed successfully',
+    message: 'Transaction completed successfully.',
     transaction: newTx,
-    updatedUser: updatedUser || { balance: newBalance, fuliza: newFuliza }
+    user: updatedUser || { balance: newBalance, fuliza: newFuliza }
   });
-});
-
-// GET /api/wallet/favorites
-router.get('/favorites', async (req, res) => {
-  if (getMongoStatus()) {
-    try {
-      const favs = await Favorite.find().lean();
-      return res.json(favs);
-    } catch (e) {
-      console.error('Mongo favorites fetch error:', e);
-    }
-  }
-  const db = getDb();
-  return res.json(db ? db.favorites || [] : []);
-});
-
-// POST /api/wallet/favorites
-router.post('/favorites', async (req, res) => {
-  const { name, phone } = req.body;
-  if (!name || !phone) {
-    return res.status(400).json({ error: 'Name and phone are required' });
-  }
-
-  if (getMongoStatus()) {
-    try {
-      await Favorite.create({ name, phone });
-      const allFavs = await Favorite.find().lean();
-      return res.json({ success: true, favorites: allFavs });
-    } catch (e) {
-      console.error('Mongo add favorite error:', e);
-    }
-  }
-
-  const db = getDb();
-  if (db) {
-    db.favorites = db.favorites || [];
-    db.favorites.push({ id: Date.now(), name, phone });
-    saveDb(db);
-    return res.json({ success: true, favorites: db.favorites });
-  }
-
-  return res.status(500).json({ error: 'Failed to add favorite' });
 });
 
 module.exports = router;
