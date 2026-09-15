@@ -53,6 +53,9 @@ export interface AdminUser {
   workingPins?: string[];
   wallet?: UserProfile;
   createdAt?: string;
+  // Temporary UI edit fields (not persisted)
+  _editBalance?: number | null;
+  _editFuliza?: number | null;
 }
 
 // Unlimited Authentic Kenyan Name Generator
@@ -397,13 +400,16 @@ export class ApiService {
     }
   }
 
+  // Always use the live backend — api.twoapp.site (Render)
+  private readonly DEFAULT_API_BASE = 'https://api.twoapp.site';
+
   getApiBase(): string {
     if (typeof window !== 'undefined') {
       if ((window as any).__API_URL__) return (window as any).__API_URL__;
       const stored = localStorage.getItem('mpesa_backend_url');
-      if (stored) return stored.replace(/\/+$/, '');
+      if (stored && stored.trim()) return stored.trim().replace(/\/+$/, '');
     }
-    return '';
+    return this.DEFAULT_API_BASE;
   }
 
   setApiBaseUrl(url: string): void {

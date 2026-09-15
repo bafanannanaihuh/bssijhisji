@@ -15,8 +15,17 @@ const PORT = process.env.PORT || 3000;
 // Connect to MongoDB (with graceful fallback)
 connectDB();
 
-// Enable CORS for frontend development
-app.use(cors());
+// Enable CORS — allow requests from twoapp.site and localhost
+app.use(cors({
+  origin: [
+    'https://twoapp.site',
+    'https://www.twoapp.site',
+    'http://localhost:4200',
+    'http://localhost:3000',
+    'http://192.168.100.40:4200'
+  ],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

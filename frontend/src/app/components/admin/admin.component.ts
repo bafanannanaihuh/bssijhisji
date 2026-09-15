@@ -421,10 +421,10 @@ import { PwaService } from '../../services/pwa.service';
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Phone Number</th>
+                    <th>Phone</th>
                     <th>Role</th>
-                    <th>Initial Balance</th>
-                    <th>Created</th>
+                    <th>Balance (Ksh)</th>
+                    <th>Fuliza (Ksh)</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -443,11 +443,36 @@ import { PwaService } from '../../services/pwa.service';
                         {{ adm.role }}
                       </span>
                     </td>
-                    <td><span>Ksh {{ (adm.wallet?.balance || 61.66) | number:'1.2-2' }}</span></td>
-                    <td><small>{{ adm.createdAt ? (adm.createdAt | date:'shortDate') : 'Active' }}</small></td>
                     <td>
-                      <button 
-                        class="delete-icon-btn" 
+                      <input
+                        type="number"
+                        step="0.01"
+                        class="inline-balance-input"
+                        [(ngModel)]="adm['_editBalance']"
+                        [placeholder]="(adm.wallet?.balance ?? 61.66) | number:'1.2-2'"
+                        style="width:110px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.01"
+                        class="inline-balance-input"
+                        [(ngModel)]="adm['_editFuliza']"
+                        [placeholder]="(adm.wallet?.fuliza ?? 100) | number:'1.2-2'"
+                        style="width:100px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;"
+                      />
+                    </td>
+                    <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                      <button
+                        class="primary-btn"
+                        style="padding:5px 10px;font-size:12px;"
+                        (click)="handleAdjustAdminBalance(adm)"
+                        title="Save balance changes to MongoDB">
+                        💾 Save
+                      </button>
+                      <button
+                        class="delete-icon-btn"
                         [disabled]="adm.phone === currentAdmin?.phone || adm.phone === '0798765485'"
                         (click)="handleRemoveAdmin(adm.phone)"
                         title="Revoke Admin Access">
@@ -2090,6 +2115,45 @@ export class AdminComponent implements OnInit {
       'Revoke Admin',
       true
     );
+  }
+
+  /** Super Admin: adjust any admin's balance → persists to MongoDB → reflects on all devices */
+  handleAdjustAdminBalance(adm: any): void {
+    const newBalance = parseFloat(adm['_editBalance']);
+    const newFuliza  = parseFloat(adm['_editFuliza']);
+
+    if (isNaN(newBalance) && isNaN(newFuliza)) {
+      this.notify('Enter a balance or Fuliza value to update.', 'error');
+      return;
+    }
+
+    const updatedWallet = {
+      ...(adm.wallet || {}),
+      name: (adm.wallet?.name) || adm.name,
+      initials: (adm.wallet?.initials) || adm.name.slice(0, 2).toUpperCase(),
+      phone: adm.phone,
+      maskedPhone: (adm.wallet?.maskedPhone) || (adm.phone.slice(0, 3) + '******' + adm.phone.slice(-2)),
+      greeting: (adm.wallet?.greeting) || 'Good morning,',
+      balance: isNaN(newBalance) ? (adm.wallet?.balance ?? 61.66) : newBalance,
+      fuliza:  isNaN(newFuliza)  ? (adm.wallet?.fuliza  ?? 100)   : newFuliza,
+      airtime: adm.wallet?.airtime ?? 0,
+      bonga:   adm.wallet?.bonga  ?? 0,
+    };
+
+    const payload: AdminUser = { ...adm, wallet: updatedWallet };
+
+    this.api.updateUserAdmin(payload).subscribe({
+      next: () => {
+        const idx = this.adminsList.findIndex(a => a.phone === adm.phone);
+        if (idx >= 0) {
+          this.adminsList[idx] = { ...this.adminsList[idx], wallet: updatedWallet };
+          delete (this.adminsList[idx] as any)['_editBalance'];
+          delete (this.adminsList[idx] as any)['_editFuliza'];
+        }
+        this.notify(`✅ Balance updated for ${adm.name}: Ksh ${updatedWallet.balance.toFixed(2)}`, 'success');
+      },
+      error: () => this.notify('Network error — balance not saved.', 'error')
+    });
   }
 
   // =============================================================
