@@ -12,13 +12,17 @@ function getMongoStatus() {
 }
 
 async function connectDB() {
-  const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mpesa';
-  console.log(`Connecting to MongoDB at: ${uri}...`);
+  if (mongoose.connection.readyState >= 1) {
+    isMongoConnected = true;
+    return;
+  }
+  const uri = process.env.MONGODB_URI || 'mongodb+srv://omorimbafana_db_user:FsA1vV0RvjrotzHC@cluster0.rc1rnme.mongodb.net/mpesa?retryWrites=true&w=majority';
+  console.log(`Connecting to MongoDB at: ${uri ? uri.slice(0, 25) + '...' : ''}`);
 
   try {
     mongoose.set('strictQuery', false);
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 3000
+      serverSelectionTimeoutMS: 5000
     });
     isMongoConnected = true;
     console.log('✅ MongoDB Connected successfully!');
@@ -36,16 +40,16 @@ async function seedInitialData() {
   try {
     const adminCount = await Admin.countDocuments();
     if (adminCount === 0) {
-      console.log('🌱 Seeding initial Super Admin (Regarn Omondi, 0798765485, PIN 1234)...');
+      console.log('🌱 Seeding initial Super Admin (Alex Wanjiku, 0798765485, PIN 1234)...');
       await Admin.create({
-        name: 'Regarn Omondi',
+        name: 'Alex Wanjiku',
         phone: '0798765485',
         password: '1234',
         role: 'Super Admin',
         workingPins: ['1234'],
         wallet: {
-          name: 'Regarn Omondi',
-          initials: 'RO',
+          name: 'Alex Wanjiku',
+          initials: 'AW',
           phone: '0798765485',
           maskedPhone: '079******85',
           greeting: 'Good morning,',
@@ -59,10 +63,10 @@ async function seedInitialData() {
 
     const userCount = await User.countDocuments();
     if (userCount === 0) {
-      console.log('🌱 Seeding initial M-PESA user (Regarn, Ksh 61.66)...');
+      console.log('🌱 Seeding initial M-PESA user (Alex Wanjiku, Ksh 61.66)...');
       await User.create({
-        name: 'Regarn',
-        initials: 'RO',
+        name: 'Alex Wanjiku',
+        initials: 'AW',
         phone: '0798765485',
         greeting: 'Good morning,',
         balance: 61.66,
@@ -79,7 +83,7 @@ async function seedInitialData() {
       await Transaction.create({
         id: 'TI93AB8190',
         type: 'RECEIVE',
-        recipient: 'Regarn',
+        recipient: 'Alex Wanjiku',
         phone: '254798765485',
         displayPhone: '0798765485',
         amount: 50.00,

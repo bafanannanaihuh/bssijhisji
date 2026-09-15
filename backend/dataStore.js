@@ -11,8 +11,8 @@ function ensureDbFile() {
   if (!fs.existsSync(DB_PATH)) {
     const defaultData = {
       user: {
-        name: 'Regarn',
-        initials: 'RO',
+        name: 'Alex Wanjiku',
+        initials: 'AW',
         phone: '0712345678',
         greeting: 'Good morning,',
         balance: 61.66,
@@ -25,15 +25,15 @@ function ensureDbFile() {
       admins: [
         {
           id: '1',
-          name: 'Regarn Omondi',
+          name: 'Alex Wanjiku',
           phone: '0798765485',
           pin: '1234',
           password: '1234',
           role: 'Super Admin',
           workingPins: ['1234'],
           wallet: {
-            name: 'Regarn Omondi',
-            initials: 'RO',
+            name: 'Alex Wanjiku',
+            initials: 'AW',
             phone: '0798765485',
             maskedPhone: '079******85',
             greeting: 'Good morning,',
@@ -50,7 +50,7 @@ function ensureDbFile() {
           id: 'UI6LQ5B06S',
           type: 'RECEIVE',
           sender: 'Safaricom Promotion',
-          recipient: 'Regarn',
+          recipient: 'Alex Wanjiku',
           phone: '254798765485',
           displayPhone: '0798765485',
           amount: 50.00,
@@ -83,15 +83,15 @@ function getDb() {
       data.admins = [
         {
           id: '1',
-          name: 'Regarn Omondi',
+          name: 'Alex Wanjiku',
           phone: '0798765485',
           pin: '1234',
           password: '1234',
           role: 'Super Admin',
           workingPins: ['1234'],
           wallet: {
-            name: 'Regarn Omondi',
-            initials: 'RO',
+            name: 'Alex Wanjiku',
+            initials: 'AW',
             phone: '0798765485',
             maskedPhone: '079******85',
             greeting: 'Good morning,',
@@ -158,3 +158,4 @@ module.exports = {
   saveDb,
   generateTransactionId
 };
+

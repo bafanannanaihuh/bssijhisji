@@ -1735,8 +1735,8 @@ export class SendMoneyComponent implements OnInit {
   private changeDetectorRef = inject(ChangeDetectorRef);
 
   user: UserProfile = {
-    name: 'Regarn Omondi',
-    initials: 'RO',
+    name: 'Alex Wanjiku',
+    initials: 'AW',
     phone: '0798765485',
     greeting: 'Good morning,',
     balance: 61.66,

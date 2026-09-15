@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, default: 'Regarn' },
-  initials: { type: String, default: 'RO' },
+  name: { type: String, default: 'Alex Wanjiku' },
+  initials: { type: String, default: 'AW' },
   phone: { type: String, default: '0712345678' },
   greeting: { type: String, default: 'Good morning,' },
   balance: { type: Number, default: 61.66 },
@@ -13,3 +13,4 @@ const userSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('User', userSchema);
+

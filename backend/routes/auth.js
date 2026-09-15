@@ -53,8 +53,9 @@ router.post('/pin', async (req, res) => {
   return res.json({
     success: true,
     message: 'PIN verified successfully',
-    user: currentUser || { name: 'Regarn', balance: 61.66, fuliza: 100.00 }
+    user: currentUser || { name: 'Alex Wanjiku', balance: 61.66, fuliza: 100.00 }
   });
 });
 
 module.exports = router;
+

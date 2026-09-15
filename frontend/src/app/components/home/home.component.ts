@@ -26,7 +26,7 @@ import { ApiService, UserProfile, Transaction } from '../../services/api.service
             </div>
             <div class="greeting-text">
               <span class="greeting-sub">{{ dynamicGreeting }}</span>
-              <span class="user-name">{{ user.name || 'Regarn' }} 👋</span>
+              <span class="user-name">{{ user.name || 'Alex' }} 👋</span>
             </div>
           </div>
 
@@ -1727,8 +1727,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   };
 
   user: UserProfile = {
-    name: 'Regarn',
-    initials: 'RO',
+    name: 'Alex Wanjiku',
+    initials: 'AW',
     phone: '0712345678',
     greeting: 'Good morning,',
     balance: 61.66,

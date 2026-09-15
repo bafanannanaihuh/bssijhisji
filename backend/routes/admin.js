@@ -20,14 +20,14 @@ async function findAdmin(phone) {
       }
       if (!admin && (cleanPhone === '0798765485' || cleanPhone === '254798765485')) {
         admin = await Admin.create({
-          name: 'Regarn Omondi',
+          name: 'Alex Wanjiku',
           phone: '0798765485',
           password: '1234',
           role: 'Super Admin',
           workingPins: ['1234'],
           wallet: {
-            name: 'Regarn Omondi',
-            initials: 'RO',
+            name: 'Alex Wanjiku',
+            initials: 'AW',
             phone: '0798765485',
             maskedPhone: '079******85',
             greeting: 'Good morning,',
@@ -709,3 +709,4 @@ router.delete('/transactions/:id', async (req, res) => {
 });
 
 module.exports = router;
+

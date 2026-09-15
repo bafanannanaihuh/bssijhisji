@@ -45,12 +45,14 @@ if (fs.existsSync(frontendDistPath)) {
   });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 M-PESA Backend server running on http://localhost:${PORT} and http://192.168.100.40:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 M-PESA Backend server running on http://localhost:${PORT} and http://192.168.100.40:${PORT}`);
+  });
+}
 
-// Only run local self-signed HTTPS server when running locally (not on Render/cloud)
-if (!process.env.RENDER && process.env.NODE_ENV !== 'production') {
+// Only run local self-signed HTTPS server when running locally (not on Render/cloud/Vercel)
+if (!process.env.RENDER && !process.env.VERCEL && process.env.NODE_ENV !== 'production') {
   try {
     const https = require('https');
     const selfsigned = require('selfsigned');
@@ -70,4 +72,6 @@ if (!process.env.RENDER && process.env.NODE_ENV !== 'production') {
     console.warn('HTTPS server initialization skipped:', e.message);
   }
 }
+
+module.exports = app;
 

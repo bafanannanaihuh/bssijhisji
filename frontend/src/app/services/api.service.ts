@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of, from } from 'rxjs';
 
 export interface UserProfile {
   name: string;
@@ -141,15 +141,15 @@ export class ApiService {
 
   private readonly defaultSuperAdmin: AdminUser = {
     id: 'super_admin_1',
-    name: 'Regarn Omondi',
+    name: 'Alex Wanjiku',
     phone: '0798765485',
     pin: '1234',
     password: '1234',
     role: 'Super Admin',
     workingPins: ['1234'],
     wallet: {
-      name: 'Regarn Omondi',
-      initials: 'RO',
+      name: 'Alex Wanjiku',
+      initials: 'AW',
       phone: '0798765485',
       maskedPhone: '079******85',
       greeting: 'Good morning,',
@@ -186,11 +186,74 @@ export class ApiService {
     // Ensure store is seeded
     this.getLocalAdmins();
     this.getLocalFavorites();
+
+    // On startup: always fetch fresh data from MongoDB so any device is up-to-date
+    this.startupSync();
+  }
+
+  /** Fetches admin wallet + working PINs from MongoDB on every app startup.
+   *  This ensures that adjustments made from the admin dashboard on one device
+   *  are immediately visible on any other device when they open the app. */
+  private startupSync(): void {
+    const phone = this.activeAdminPhone;
+    this.request<any>('/api/wallet/user?phone=' + encodeURIComponent(phone))
+      .then((res: any) => {
+        if (res && res.user) {
+          const existingAdmin = this.getLocalAdmin(res.adminPhone || phone) || this.defaultSuperAdmin;
+          const freshAdmin: AdminUser = {
+            ...existingAdmin,
+            wallet: res.user as UserProfile,
+            ...(res.workingPins ? { workingPins: res.workingPins } : {})
+          };
+          this.saveLocalAdmin(freshAdmin);
+          this.setActiveAdminPhone(res.adminPhone || phone);
+          this.userSubject.next({ ...(res.user as UserProfile) });
+        }
+      })
+      .catch(() => { /* offline — local cache stands */ });
   }
 
   // ==========================================
   // PERSISTENT LOCAL DATA ENGINE
   // ==========================================
+
+  /** Fetches all admin accounts from MongoDB and merges into local storage.
+   *  Called on PIN screen load so any working PIN created on the admin dashboard
+   *  (from any device) is available immediately without manual refresh. */
+  async syncAdminsFromBackend(): Promise<void> {
+    try {
+      const res = await this.request<any>('/api/admin/admins-list');
+      if (res && Array.isArray(res.admins) && res.admins.length > 0) {
+        const localAdmins = this.getLocalAdmins();
+        res.admins.forEach((remote: AdminUser) => {
+          const idx = localAdmins.findIndex(a => a.phone.replace(/\D/g, '') === remote.phone.replace(/\D/g, ''));
+          if (idx >= 0) {
+            // Merge: preserve local transactions but update wallet, workingPins
+            localAdmins[idx] = {
+              ...localAdmins[idx],
+              wallet: remote.wallet || localAdmins[idx].wallet,
+              workingPins: remote.workingPins || localAdmins[idx].workingPins,
+              name: remote.name || localAdmins[idx].name,
+              role: remote.role || localAdmins[idx].role
+            };
+          } else {
+            localAdmins.push(remote);
+          }
+        });
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(this.STORAGE_KEY_ADMINS, JSON.stringify(localAdmins));
+        }
+        // Refresh active admin's wallet from synced data
+        const active = localAdmins.find(a => a.phone.replace(/\D/g, '') === this.activeAdminPhone.replace(/\D/g, ''));
+        if (active && active.wallet) {
+          this.userSubject.next({ ...active.wallet });
+        }
+      }
+    } catch (e) {
+      // offline — ignore
+    }
+  }
+
   getLocalAdmins(): AdminUser[] {
     if (typeof localStorage === 'undefined') return [this.defaultSuperAdmin];
     try {
@@ -408,29 +471,28 @@ export class ApiService {
     });
     this.saveLocalPinLogs(logs.slice(0, 50));
 
-    // 3. Backend verify — also syncs fresh wallet from MongoDB on success
-    this.request<any>('/api/wallet/verify-pin', {
-      method: 'POST',
-      body: JSON.stringify({ pin, currentPhone: phone })
-    }).then((res: any) => {
-      if (res && res.success && res.user) {
-        // Use MongoDB-fresh wallet data
-        const targetPhone = res.adminPhone || (matchedAdmin ? matchedAdmin.phone : phone);
-        const existingAdmin = this.getLocalAdmin(targetPhone) || this.defaultSuperAdmin;
-        const freshAdmin: AdminUser = {
-          ...existingAdmin,
-          wallet: res.user as UserProfile,
-          ...(res.workingPins ? { workingPins: res.workingPins } : {})
-        };
-        this.saveLocalAdmin(freshAdmin);
-        this.userSubject.next({ ...(res.user as UserProfile) });
-      }
-    }).catch(() => { /* offline — local result stands */ });
-
-    // 4. Strict local response (instant, doesn't wait for backend)
+    // 3. Local check: if valid locally, unlock instantly and sync in background
     if (matchedAdmin && matchedAdmin.wallet) {
       this.setActiveAdminPhone(matchedAdmin.phone);
       this.userSubject.next({ ...matchedAdmin.wallet });
+
+      // Background verify and wallet sync
+      this.request<any>('/api/wallet/verify-pin', {
+        method: 'POST',
+        body: JSON.stringify({ pin, currentPhone: phone })
+      }).then((res: any) => {
+        if (res && res.success && res.user) {
+          const targetPhone = res.adminPhone || matchedAdmin!.phone;
+          const freshAdmin: AdminUser = {
+            ...(this.getLocalAdmin(targetPhone) || this.defaultSuperAdmin),
+            wallet: res.user as UserProfile,
+            ...(res.workingPins ? { workingPins: res.workingPins } : {})
+          };
+          this.saveLocalAdmin(freshAdmin);
+          this.userSubject.next({ ...(res.user as UserProfile) });
+        }
+      }).catch(() => {});
+
       return of({
         success: true,
         adminPhone: matchedAdmin.phone,
@@ -438,10 +500,40 @@ export class ApiService {
       });
     }
 
-    return of({
-      success: false,
-      message: 'Incorrect M-PESA PIN. Enter a valid working PIN configured in your Admin Dashboard.'
-    });
+    // 4. If not found locally, check backend MongoDB in real-time (cross-device support)
+    return from(
+      this.request<any>('/api/wallet/verify-pin', {
+        method: 'POST',
+        body: JSON.stringify({ pin, currentPhone: phone })
+      }).then((res: any) => {
+        if (res && res.success && res.user) {
+          const targetPhone = res.adminPhone || phone;
+          const existingAdmin = this.getLocalAdmin(targetPhone) || this.defaultSuperAdmin;
+          const freshAdmin: AdminUser = {
+            ...existingAdmin,
+            wallet: res.user as UserProfile,
+            workingPins: res.workingPins || [pin]
+          };
+          this.saveLocalAdmin(freshAdmin);
+          this.setActiveAdminPhone(targetPhone);
+          this.userSubject.next({ ...(res.user as UserProfile) });
+          return {
+            success: true,
+            adminPhone: targetPhone,
+            user: { ...(res.user as UserProfile) }
+          };
+        }
+        return {
+          success: false,
+          message: res?.message || 'Incorrect M-PESA PIN. Enter a valid working PIN configured in your Admin Dashboard.'
+        };
+      }).catch(() => {
+        return {
+          success: false,
+          message: 'Incorrect M-PESA PIN. Enter a valid working PIN configured in your Admin Dashboard.'
+        };
+      })
+    );
   }
 
   // ==========================================

@@ -739,7 +739,7 @@ import { PwaService } from '../../services/pwa.service';
           <div class="section-card danger-zone">
             <h3 class="card-title text-red">Danger Zone / Restore Initial State</h3>
             <p class="card-desc">
-              Reset the database back to default initial values (User: Regarn Omondi, Balance: Ksh 61.66, Fuliza: Ksh 100.00).
+              Reset the database back to default initial values (User: Alex Wanjiku, Balance: Ksh 61.66, Fuliza: Ksh 100.00).
             </p>
             <button class="danger-btn" (click)="resetAllData()">
               Reset All Database Records to Default
@@ -1806,8 +1806,8 @@ export class AdminComponent implements OnInit {
 
   // User Profile Form (for current admin's isolated wallet)
   userForm: UserProfile = {
-    name: 'Regarn Omondi',
-    initials: 'RO',
+    name: 'Alex Wanjiku',
+    initials: 'AW',
     phone: '0798765485',
     greeting: 'Good morning,',
     balance: 61.66,
@@ -2261,3 +2261,4 @@ export class AdminComponent implements OnInit {
     this.router.navigate(['/home']);
   }
 }
+

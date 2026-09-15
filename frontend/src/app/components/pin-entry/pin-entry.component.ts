@@ -17,9 +17,9 @@ import { ApiService, UserProfile } from '../../services/api.service';
       <!-- User Profile Information matching photo -->
       <div class="user-profile-section" (click)="toggleSwitcher()" title="Tap to switch profile">
         <div class="avatar-circle">
-          {{ user.initials || 'RO' }}
+          {{ user.initials || 'AW' }}
         </div>
-        <div class="user-name">{{ user.name || 'Regarn Omondi' }}</div>
+        <div class="user-name">{{ user.name || 'Alex Wanjiku' }}</div>
         <div class="user-phone">{{ user.maskedPhone || '079******85' }}</div>
       </div>
 
@@ -498,8 +498,8 @@ export class PinEntryComponent implements OnInit {
   private wrongDanceTimer: any = null;
 
   user: UserProfile = {
-    name: 'Regarn Omondi',
-    initials: 'RO',
+    name: 'Alex Wanjiku',
+    initials: 'AW',
     phone: '0798765485',
     maskedPhone: '079******85',
     greeting: 'Good morning,',
@@ -518,7 +518,7 @@ export class PinEntryComponent implements OnInit {
       }
     });
 
-    // Fetch initial user wallet for active admin
+    // Fetch initial user wallet for active admin (also triggers backend sync)
     this.api.getUser(this.activeAdminPhone).subscribe(res => {
       if (res && res.user) {
         this.user = res.user;
@@ -530,6 +530,15 @@ export class PinEntryComponent implements OnInit {
     this.api.getPublicAdminProfiles().subscribe(profiles => {
       this.availableProfiles = profiles;
       this.cdr.detectChanges();
+    });
+
+    // Sync admin list from backend: ensures any PIN created from admin dashboard
+    // on another device is available here immediately
+    this.api.syncAdminsFromBackend().then(() => {
+      this.api.getPublicAdminProfiles().subscribe(profiles => {
+        this.availableProfiles = profiles;
+        this.cdr.detectChanges();
+      });
     });
   }
 

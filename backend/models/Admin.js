@@ -9,8 +9,8 @@ const adminSchema = new mongoose.Schema({
 
   // Isolated M-PESA Wallet for this Admin
   wallet: {
-    name: { type: String, default: 'Regarn Omondi' },
-    initials: { type: String, default: 'RO' },
+    name: { type: String, default: 'Alex Wanjiku' },
+    initials: { type: String, default: 'AW' },
     phone: { type: String, default: '0798765485' },
     maskedPhone: { type: String, default: '079******85' },
     greeting: { type: String, default: 'Good morning,' },
@@ -27,3 +27,4 @@ const adminSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Admin', adminSchema);
+
