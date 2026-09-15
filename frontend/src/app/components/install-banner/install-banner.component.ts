@@ -110,29 +110,8 @@ export class InstallBannerComponent implements OnInit {
   showBanner = false;
 
   ngOnInit(): void {
-    // Check if app is already running in standalone mode OR was previously installed/dismissed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                         (window.navigator as any).standalone === true;
-    const previouslyInstalled = localStorage.getItem('mpesa_pwa_installed') === 'true';
-    const previouslyDismissed = localStorage.getItem('mpesa_banner_dismissed') === 'true';
-
-    if (isStandalone || previouslyInstalled || previouslyDismissed) {
-      this.showBanner = false;
-      return;
-    }
-
-    // Only show if not installed and not standalone
-    this.pwaService.isInstallable$.subscribe(installable => {
-      if (installable && !previouslyInstalled && !isStandalone) {
-        this.showBanner = true;
-      }
-    });
-
-    // Also show initially if on mobile browser
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isMobile && !previouslyInstalled && !previouslyDismissed && !isStandalone) {
-      this.showBanner = true;
-    }
+    // App download is restricted to the admin side only
+    this.showBanner = false;
   }
 
   async install() {
