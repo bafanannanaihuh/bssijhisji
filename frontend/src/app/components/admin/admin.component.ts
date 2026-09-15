@@ -149,6 +149,111 @@ import { PwaService } from '../../services/pwa.service';
           </div>
         </div>
 
+        <!-- Super Admin Quick Fast Controls Hub -->
+        <div class="super-quick-hub" *ngIf="currentAdmin?.role === 'Super Admin'">
+          <div class="quick-hub-header">
+            <span class="hub-badge">⚡ SUPER ADMIN QUICK HUB</span>
+            <span class="hub-sub">Instant balance adjustment, admin creation, and mobile app download in 1 click</span>
+          </div>
+
+          <div class="quick-cards-grid">
+            <!-- 1. Quick Balance & PIN Adjuster Card -->
+            <div class="quick-card balance-qc">
+              <div class="qc-head">
+                <span class="qc-icon">💰</span>
+                <div>
+                  <h4 class="qc-title">Fast Balance Adjuster</h4>
+                  <p class="qc-desc">Select an admin and update their live balance immediately</p>
+                </div>
+              </div>
+              <div class="qc-body">
+                <div class="qc-field">
+                  <label>Select Admin Account</label>
+                  <select [(ngModel)]="quickSelectedPhone" (change)="onQuickAdminSelect()" class="qc-select">
+                    <option *ngFor="let a of adminsList" [value]="a.phone">
+                      {{ a.name }} ({{ a.phone }}) — Ksh {{ (a.wallet?.balance ?? 61.66) | number:'1.2-2' }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="qc-row">
+                  <div class="qc-field">
+                    <label>New Balance (Ksh)</label>
+                    <input type="number" step="0.01" [(ngModel)]="quickBalanceInput" placeholder="e.g. 50000" class="qc-input" />
+                  </div>
+                  <div class="qc-field">
+                    <label>Working PIN</label>
+                    <input type="text" maxlength="4" [(ngModel)]="quickPinInput" placeholder="4-digit PIN" class="qc-input" />
+                  </div>
+                </div>
+
+                <button type="button" class="qc-btn primary-qc-btn" (click)="saveQuickBalanceAndPin()">
+                  ⚡ Save & Sync to Phone
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Quick Admin Creator Card -->
+            <div class="quick-card admin-qc">
+              <div class="qc-head">
+                <span class="qc-icon">👤</span>
+                <div>
+                  <h4 class="qc-title">Fast Admin Creator</h4>
+                  <p class="qc-desc">Create a new isolated admin with their own PIN and balance</p>
+                </div>
+              </div>
+              <div class="qc-body">
+                <div class="qc-row">
+                  <div class="qc-field">
+                    <label>Admin Name</label>
+                    <input type="text" [(ngModel)]="newAdminName" placeholder="Full name" class="qc-input" />
+                  </div>
+                  <div class="qc-field">
+                    <label>Phone Number</label>
+                    <input type="tel" [(ngModel)]="newAdminPhone" placeholder="0712345678" class="qc-input" />
+                  </div>
+                </div>
+
+                <div class="qc-row">
+                  <div class="qc-field">
+                    <label>Working PIN</label>
+                    <input type="text" maxlength="4" [(ngModel)]="newAdminWorkingPin" placeholder="4 digits (e.g. 2580)" class="qc-input" />
+                  </div>
+                  <div class="qc-field">
+                    <label>Initial Balance (Ksh)</label>
+                    <input type="number" step="0.01" [(ngModel)]="newAdminBalance" placeholder="61.66" class="qc-input" />
+                  </div>
+                </div>
+
+                <button type="button" class="qc-btn success-qc-btn" (click)="handleAddAdmin()">
+                  ✨ Create Admin & Working PIN
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. Quick Mobile App Download Card -->
+            <div class="quick-card download-qc">
+              <div class="qc-head">
+                <span class="qc-icon">📲</span>
+                <div>
+                  <h4 class="qc-title">Download Mobile App</h4>
+                  <p class="qc-desc">Install or share the live PWA mobile app</p>
+                </div>
+              </div>
+              <div class="qc-body">
+                <button type="button" class="qc-btn download-qc-btn" (click)="downloadAppToHomescreen()">
+                  📥 Install App on this Device
+                </button>
+                <div class="qc-link-row">
+                  <span class="qc-url-tag">https://twoapp.site</span>
+                  <button type="button" class="qc-copy-btn" (click)="copyAppLink()">📋 Copy Link</button>
+                </div>
+                <small class="qc-hint">On mobile: open <strong>twoapp.site</strong> in browser → tap Share/Menu → <strong>Add to Home Screen</strong></small>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Tabs Navigation -->
         <div class="admin-tabs">
           <button class="a-tab" [class.active]="activeTab === 'user'" (click)="activeTab = 'user'">
@@ -423,6 +528,7 @@ import { PwaService } from '../../services/pwa.service';
                     <th>Name</th>
                     <th>Phone</th>
                     <th>Role</th>
+                    <th>Working PIN</th>
                     <th>Balance (Ksh)</th>
                     <th>Fuliza (Ksh)</th>
                     <th>Action</th>
@@ -442,6 +548,16 @@ import { PwaService } from '../../services/pwa.service';
                       <span class="role-pill" [class.super]="adm.role === 'Super Admin'">
                         {{ adm.role }}
                       </span>
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        maxlength="4"
+                        class="inline-pin-input"
+                        [(ngModel)]="adm['_editPin']"
+                        [placeholder]="adm.workingPins?.[0] || '1234'"
+                        style="width:75px;padding:4px 6px;border:1px solid #36424d;background:#1e262c;color:#00c853;border-radius:6px;font-family:monospace;letter-spacing:2px;font-weight:bold;text-align:center;"
+                      />
                     </td>
                     <td>
                       <input
@@ -468,7 +584,7 @@ import { PwaService } from '../../services/pwa.service';
                         class="primary-btn"
                         style="padding:5px 10px;font-size:12px;"
                         (click)="handleAdjustAdminBalance(adm)"
-                        title="Save balance changes to MongoDB">
+                        title="Save balance and PIN changes to MongoDB">
                         💾 Save
                       </button>
                       <button
@@ -597,21 +713,21 @@ import { PwaService } from '../../services/pwa.service';
               <div class="install-result-msg" *ngIf="installMessage">{{ installMessage }}</div>
             </div>
 
-            <!-- Network URL Card for Physical Phone -->
+            <!-- Network URL Card for Mobile Phones -->
             <div class="network-access-box">
-              <div class="net-title">📡 Connect Physical Phone over Local Wi-Fi:</div>
+              <div class="net-title">🌐 Live Mobile App Link:</div>
               <div class="net-links">
-                <div class="net-row">
-                  <span class="net-tag secure">HTTPS (Best for Install):</span>
-                  <a href="https://192.168.100.40:3443" target="_blank" class="net-link">https://192.168.100.40:3443</a>
-                </div>
-                <div class="net-row">
-                  <span class="net-tag">HTTP:</span>
-                  <a href="http://192.168.100.40:3000" target="_blank" class="net-link">http://192.168.100.40:3000</a>
+                <div class="net-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <span class="net-tag secure">Official Live App:</span>
+                  <a href="https://twoapp.site" target="_blank" class="net-link" style="font-size:16px;font-weight:700;">https://twoapp.site</a>
+                  <button type="button" class="primary-btn" style="padding:4px 12px;font-size:12px;" (click)="copyAppLink()">📋 Copy App Link</button>
                 </div>
               </div>
               <p class="net-note">
-                💡 <strong>How to get the icon on your phone:</strong> Open Chrome on your phone, navigate to <code>https://192.168.100.40:3443</code> (accept the self-signed cert) or <code>http://192.168.100.40:3000</code>. Then tap Chrome's <strong>⋮ (three dots)</strong> at the top right, and tap <strong>"Install app"</strong> (or <strong>"Add to Home screen"</strong>). The app will install with the created official green <strong>My OneApp</strong> squircle icon.
+                💡 <strong>How to install on your phone in 10 seconds:</strong> Open <code>https://twoapp.site</code> in Chrome (Android) or Safari (iPhone).
+                <br>• <strong>Android:</strong> Tap the menu (<strong>⋮</strong> three dots) → tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.
+                <br>• <strong>iPhone:</strong> Tap the <strong>Share (⬆️)</strong> button → tap <strong>"Add to Home Screen"</strong>.
+                <br>The app installs with the official green <strong>My OneApp</strong> icon and launches full screen!
               </p>
             </div>
 
@@ -962,6 +1078,179 @@ import { PwaService } from '../../services/pwa.service';
     .text-red { color: #e50914; }
     .text-cyan { color: #4dd0e1; }
     .text-yellow { color: #ffb74d; }
+
+    /* Super Admin Quick Hub Styles */
+    .super-quick-hub {
+      background: #111518;
+      border: 1px solid #1f2830;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .quick-hub-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .hub-badge {
+      background: linear-gradient(135deg, #00c853, #009624);
+      color: #000;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .hub-sub {
+      color: #8b949e;
+      font-size: 12px;
+    }
+    .quick-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .quick-card {
+      background: #161c22;
+      border: 1px solid #28343e;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .qc-head {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .qc-icon {
+      font-size: 24px;
+    }
+    .qc-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 2px 0;
+    }
+    .qc-desc {
+      font-size: 11.5px;
+      color: #8b949e;
+      margin: 0;
+      line-height: 1.35;
+    }
+    .qc-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .qc-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .qc-field label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .qc-select, .qc-input {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .qc-select:focus, .qc-input:focus {
+      border-color: #00c853;
+    }
+    .qc-row {
+      display: flex;
+      gap: 10px;
+    }
+    .qc-btn {
+      width: 100%;
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .primary-qc-btn {
+      background: #00c853;
+      color: #000;
+    }
+    .primary-qc-btn:hover {
+      background: #00e676;
+    }
+    .success-qc-btn {
+      background: #238636;
+      color: #ffffff;
+    }
+    .success-qc-btn:hover {
+      background: #2ea043;
+    }
+    .download-qc-btn {
+      background: #1f6feb;
+      color: #ffffff;
+    }
+    .download-qc-btn:hover {
+      background: #388bfd;
+    }
+    .qc-link-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .qc-url-tag {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #58a6ff;
+      font-family: monospace;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .qc-copy-btn {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .qc-copy-btn:hover {
+      background: #30363d;
+      color: #ffffff;
+    }
+    .qc-hint {
+      font-size: 11px;
+      color: #7d8590;
+      line-height: 1.4;
+    }
 
     /* Admin Tabs */
     .admin-tabs {
@@ -1805,6 +2094,12 @@ export class AdminComponent implements OnInit {
   newWorkingPin: string = '';
   workingPinMsg: string = '';
 
+  // Super Admin Quick Control Panel State
+  quickSelectedPhone = '0798765485';
+  quickBalanceInput: number | null = null;
+  quickFulizaInput: number | null = null;
+  quickPinInput = '';
+
   // Change Password state
   currentPassInput: string = '';
   newPassInput: string = '';
@@ -1919,7 +2214,13 @@ export class AdminComponent implements OnInit {
         if (res.database) this.dbStatus = res.database;
         if (res.user) this.userForm = { ...res.user };
         if (res.workingPins) this.workingPins = res.workingPins;
-        if (res.adminsList) this.adminsList = res.adminsList;
+        if (res.adminsList) {
+          this.adminsList = res.adminsList;
+          if (!this.quickSelectedPhone && this.adminsList.length > 0) {
+            this.quickSelectedPhone = this.adminsList[0].phone;
+          }
+          this.onQuickAdminSelect();
+        }
         if (res.recentPins) this.pinLogs = res.recentPins;
         if (res.recentTransactions) this.transactions = res.recentTransactions;
       }
@@ -1930,6 +2231,76 @@ export class AdminComponent implements OnInit {
         this.favoritesList = favs;
       }
     });
+  }
+
+  onQuickAdminSelect(): void {
+    const adm = this.adminsList.find(a => a.phone === this.quickSelectedPhone);
+    if (adm) {
+      this.quickBalanceInput = adm.wallet?.balance ?? 61.66;
+      this.quickFulizaInput = adm.wallet?.fuliza ?? 100.00;
+      this.quickPinInput = (adm.workingPins && adm.workingPins[0]) || '1234';
+    }
+  }
+
+  saveQuickBalanceAndPin(): void {
+    if (!this.quickSelectedPhone) {
+      this.notify('Please select an admin account to adjust.', 'error');
+      return;
+    }
+    const adm = this.adminsList.find(a => a.phone === this.quickSelectedPhone);
+    const targetName = adm?.name || this.quickSelectedPhone;
+    const balance = this.quickBalanceInput !== null ? Number(this.quickBalanceInput) : (adm?.wallet?.balance ?? 61.66);
+    const fuliza = this.quickFulizaInput !== null ? Number(this.quickFulizaInput) : (adm?.wallet?.fuliza ?? 100.00);
+    const pin = (this.quickPinInput || '').trim();
+
+    if (pin && !/^\d{4}$/.test(pin)) {
+      this.notify('Working PIN must be exactly 4 digits.', 'error');
+      return;
+    }
+
+    const payload = {
+      balance,
+      fuliza,
+      workingPin: pin || undefined
+    };
+
+    this.api.updateUserAdmin(payload, this.quickSelectedPhone).subscribe({
+      next: (res) => {
+        const idx = this.adminsList.findIndex(a => a.phone === this.quickSelectedPhone);
+        if (idx >= 0) {
+          this.adminsList[idx].wallet = {
+            ...(this.adminsList[idx].wallet || {} as any),
+            balance,
+            fuliza
+          };
+          if (res?.workingPins) {
+            this.adminsList[idx].workingPins = res.workingPins;
+          } else if (pin) {
+            this.adminsList[idx].workingPins = [pin];
+          }
+        }
+        if (this.currentAdmin && this.currentAdmin.phone === this.quickSelectedPhone) {
+          this.userForm.balance = balance;
+          this.userForm.fuliza = fuliza;
+          if (pin) this.workingPins = [pin];
+        }
+        this.notify(`✅ Balance for ${targetName} updated to Ksh ${balance.toFixed(2)}${pin ? ' (PIN: ' + pin + ')' : ''}! Synced live to phone.`, 'success');
+      },
+      error: () => this.notify('Network error — balance not saved.', 'error')
+    });
+  }
+
+  copyAppLink(): void {
+    const url = 'https://twoapp.site';
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        this.notify('Copied https://twoapp.site to clipboard!', 'success');
+      }).catch(() => {
+        this.notify('Link: https://twoapp.site', 'info');
+      });
+    } else {
+      this.notify('Link: https://twoapp.site', 'info');
+    }
   }
 
   // =============================================================
@@ -2117,13 +2488,14 @@ export class AdminComponent implements OnInit {
     );
   }
 
-  /** Super Admin: adjust any admin's balance → persists to MongoDB → reflects on all devices */
+  /** Super Admin: adjust any admin's balance & working PIN → persists to MongoDB → reflects on all devices */
   handleAdjustAdminBalance(adm: any): void {
     const newBalance = parseFloat(adm['_editBalance']);
     const newFuliza  = parseFloat(adm['_editFuliza']);
+    const newPin     = (adm['_editPin'] || '').toString().trim();
 
-    if (isNaN(newBalance) && isNaN(newFuliza)) {
-      this.notify('Enter a balance or Fuliza value to update.', 'error');
+    if (isNaN(newBalance) && isNaN(newFuliza) && (!newPin || !/^\d{4}$/.test(newPin))) {
+      this.notify('Enter a new balance, Fuliza, or 4-digit PIN to update.', 'error');
       return;
     }
 
@@ -2140,17 +2512,30 @@ export class AdminComponent implements OnInit {
       bonga:   adm.wallet?.bonga  ?? 0,
     };
 
-    const payload: AdminUser = { ...adm, wallet: updatedWallet };
+    const payload = {
+      balance: updatedWallet.balance,
+      fuliza: updatedWallet.fuliza,
+      workingPin: /^\d{4}$/.test(newPin) ? newPin : undefined
+    };
 
-    this.api.updateUserAdmin(payload).subscribe({
-      next: () => {
+    this.api.updateUserAdmin(payload, adm.phone).subscribe({
+      next: (res) => {
         const idx = this.adminsList.findIndex(a => a.phone === adm.phone);
         if (idx >= 0) {
-          this.adminsList[idx] = { ...this.adminsList[idx], wallet: updatedWallet };
+          this.adminsList[idx] = {
+            ...this.adminsList[idx],
+            wallet: updatedWallet,
+            workingPins: res?.workingPins || (payload.workingPin ? [payload.workingPin] : this.adminsList[idx].workingPins)
+          };
           delete (this.adminsList[idx] as any)['_editBalance'];
           delete (this.adminsList[idx] as any)['_editFuliza'];
+          delete (this.adminsList[idx] as any)['_editPin'];
         }
-        this.notify(`✅ Balance updated for ${adm.name}: Ksh ${updatedWallet.balance.toFixed(2)}`, 'success');
+        if (this.currentAdmin && this.currentAdmin.phone === adm.phone) {
+          this.userForm.balance = updatedWallet.balance;
+          this.userForm.fuliza = updatedWallet.fuliza;
+        }
+        this.notify(`✅ Updated ${adm.name}: Balance Ksh ${updatedWallet.balance.toFixed(2)}${payload.workingPin ? ' (PIN: ' + payload.workingPin + ')' : ''}`, 'success');
       },
       error: () => this.notify('Network error — balance not saved.', 'error')
     });

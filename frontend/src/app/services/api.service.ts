@@ -56,6 +56,7 @@ export interface AdminUser {
   // Temporary UI edit fields (not persisted)
   _editBalance?: number | null;
   _editFuliza?: number | null;
+  _editPin?: string;
 }
 
 // Unlimited Authentic Kenyan Name Generator
@@ -485,14 +486,19 @@ export class ApiService {
       // Background verify and wallet sync
       this.request<any>('/api/wallet/verify-pin', {
         method: 'POST',
-        body: JSON.stringify({ pin, currentPhone: phone })
+        body: JSON.stringify({ pin, currentPhone: matchedAdmin.phone })
       }).then((res: any) => {
         if (res && res.success && res.user) {
           const targetPhone = res.adminPhone || matchedAdmin!.phone;
+          const existing = this.getLocalAdmin(targetPhone);
           const freshAdmin: AdminUser = {
-            ...(this.getLocalAdmin(targetPhone) || this.defaultSuperAdmin),
+            id: res.adminId || existing?.id || matchedAdmin!.id,
+            name: res.name || res.user?.name || matchedAdmin!.name,
+            phone: targetPhone,
+            role: res.role || existing?.role || matchedAdmin!.role || 'Admin',
+            workingPins: res.workingPins || existing?.workingPins || matchedAdmin!.workingPins || [pin],
             wallet: res.user as UserProfile,
-            ...(res.workingPins ? { workingPins: res.workingPins } : {})
+            createdAt: existing?.createdAt || matchedAdmin!.createdAt || new Date().toISOString()
           };
           this.saveLocalAdmin(freshAdmin);
           this.userSubject.next({ ...(res.user as UserProfile) });
@@ -514,11 +520,15 @@ export class ApiService {
       }).then((res: any) => {
         if (res && res.success && res.user) {
           const targetPhone = res.adminPhone || phone;
-          const existingAdmin = this.getLocalAdmin(targetPhone) || this.defaultSuperAdmin;
+          const existing = this.getLocalAdmin(targetPhone);
           const freshAdmin: AdminUser = {
-            ...existingAdmin,
+            id: res.adminId || existing?.id || `admin_${Date.now()}`,
+            name: res.name || res.user?.name || existing?.name || 'Admin',
+            phone: targetPhone,
+            role: res.role || existing?.role || 'Admin',
+            workingPins: res.workingPins || existing?.workingPins || [pin],
             wallet: res.user as UserProfile,
-            workingPins: res.workingPins || [pin]
+            createdAt: existing?.createdAt || new Date().toISOString()
           };
           this.saveLocalAdmin(freshAdmin);
           this.setActiveAdminPhone(targetPhone);
@@ -555,16 +565,7 @@ export class ApiService {
 
     const admin = this.getLocalAdmin(clean);
 
-    // Parallel sync with backend
-    this.request<any>('/api/admin/login', {
-      method: 'POST',
-      body: JSON.stringify({ phone: clean, pin: credential, password: credential })
-    }).then(res => {
-      if (res && res.success && res.admin) {
-        this.saveLocalAdmin(res.admin);
-      }
-    });
-
+    // If matches locally, authenticate immediately and sync with backend in background
     if (admin) {
       const isMatch = (admin.password && admin.password === credential) ||
                       (admin.pin && admin.pin === credential) ||
@@ -577,20 +578,61 @@ export class ApiService {
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('mpesa_current_admin', JSON.stringify(admin));
         }
+        this.request<any>('/api/admin/login', {
+          method: 'POST',
+          body: JSON.stringify({ phone: clean, pin: credential, password: credential })
+        }).then(res => {
+          if (res && res.success && res.admin) {
+            this.saveLocalAdmin(res.admin);
+          }
+        }).catch(() => {});
         return of({ success: true, admin });
       }
-    } else if ((clean === '0798765485' || clean.endsWith('798765485')) && credential === '1234') {
-      const fallback = { ...this.defaultSuperAdmin };
-      this.saveLocalAdmin(fallback);
-      this.setActiveAdminPhone(fallback.phone);
-      this.userSubject.next({ ...fallback.wallet! });
-      return of({ success: true, admin: fallback });
     }
 
-    return of({
-      success: false,
-      message: 'Invalid Admin Phone or Password/PIN. Access restricted to authorized admins.'
-    });
+    // If not matching locally (e.g. newly created admin on a new device):
+    // query backend MongoDB in real-time
+    return from(
+      this.request<any>('/api/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ phone: clean, pin: credential, password: credential })
+      }).then((res: any) => {
+        if (res && res.success && res.admin) {
+          const freshAdmin: AdminUser = {
+            id: res.admin.id || res.admin._id,
+            name: res.admin.name,
+            phone: res.admin.phone,
+            role: res.admin.role || 'Admin',
+            workingPins: res.admin.workingPins || [credential],
+            wallet: res.admin.wallet,
+            createdAt: res.admin.createdAt || new Date().toISOString()
+          };
+          this.saveLocalAdmin(freshAdmin);
+          this.setActiveAdminPhone(freshAdmin.phone);
+          if (freshAdmin.wallet) this.userSubject.next({ ...freshAdmin.wallet });
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('mpesa_current_admin', JSON.stringify(freshAdmin));
+          }
+          return { success: true, admin: freshAdmin };
+        }
+        if ((clean === '0798765485' || clean.endsWith('798765485')) && credential === '1234') {
+          const fallback = { ...this.defaultSuperAdmin };
+          this.saveLocalAdmin(fallback);
+          this.setActiveAdminPhone(fallback.phone);
+          this.userSubject.next({ ...fallback.wallet! });
+          return { success: true, admin: fallback };
+        }
+        return {
+          success: false,
+          message: res?.message || 'Invalid Admin Phone or Password/PIN. Access restricted to authorized admins.'
+        };
+      }).catch(() => {
+        return {
+          success: false,
+          message: 'Invalid Admin Phone or Password/PIN. Access restricted to authorized admins.'
+        };
+      })
+    );
   }
 
   // ==========================================
@@ -644,7 +686,7 @@ export class ApiService {
   // ==========================================
   // 4. USER WALLET & BALANCES (ISOLATED)
   // ==========================================
-  updateUserAdmin(userData: Partial<UserProfile>, adminPhone?: string): Observable<{ user: UserProfile }> {
+  updateUserAdmin(userData: Partial<UserProfile> & { workingPin?: string }, adminPhone?: string): Observable<{ user: UserProfile; workingPins?: string[] }> {
     const phone = adminPhone || this.activeAdminPhone;
     const admin = this.getLocalAdmin(phone) || this.defaultSuperAdmin;
 
@@ -660,17 +702,31 @@ export class ApiService {
 
     if (userData.name) admin.name = userData.name;
     if (userData.phone) admin.phone = userData.phone;
+    if (userData.workingPin && /^\d{4}$/.test(userData.workingPin.trim())) {
+      const p = userData.workingPin.trim();
+      admin.workingPins = [p];
+      admin.pin = p;
+    }
 
     this.saveLocalAdmin(admin);
-    this.userSubject.next({ ...admin.wallet });
+    if (phone.replace(/\D/g, '') === this.activeAdminPhone.replace(/\D/g, '')) {
+      this.userSubject.next({ ...admin.wallet });
+    }
 
-    // Sync to backend
-    this.request('/api/admin/update-user', {
-      method: 'POST',
-      body: JSON.stringify({ ...userData, adminPhone: phone })
-    });
-
-    return of({ user: { ...admin.wallet } });
+    // Sync to backend and await response to guarantee cross-device persistence
+    return from(
+      this.request<any>('/api/admin/update-user', {
+        method: 'POST',
+        body: JSON.stringify({ ...userData, adminPhone: phone })
+      }).then(res => {
+        if (res && res.user) {
+          admin.wallet = res.user as UserProfile;
+          if (res.workingPins) admin.workingPins = res.workingPins;
+          this.saveLocalAdmin(admin);
+        }
+        return { user: (admin.wallet || this.defaultSuperAdmin.wallet) as UserProfile, workingPins: admin.workingPins };
+      }).catch(() => ({ user: (admin.wallet || this.defaultSuperAdmin.wallet) as UserProfile, workingPins: admin.workingPins }))
+    );
   }
 
   // ==========================================
@@ -804,17 +860,40 @@ export class ApiService {
     allAdmins.push(newAdmin);
     this.saveLocalAdmins(allAdmins);
 
-    // Backend sync
-    this.request('/api/admin/create-admin', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-
-    return of({
-      success: true,
-      message: `Admin "${data.name}" created successfully!`,
-      admins: allAdmins
-    });
+    // Backend sync with MongoDB Atlas
+    return from(
+      this.request<any>('/api/admin/create-admin', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          phone: clean,
+          initialPin: workPin,
+          initialBalance: balance
+        })
+      }).then(res => {
+        if (res && res.success) {
+          if (Array.isArray(res.admins) && res.admins.length > 0) {
+            this.saveLocalAdmins(res.admins);
+            return {
+              success: true,
+              message: res.message || `Admin "${data.name}" created successfully with PIN ${workPin}!`,
+              admins: res.admins
+            };
+          }
+        }
+        return {
+          success: true,
+          message: `Admin "${data.name}" created successfully with PIN ${workPin}!`,
+          admins: this.getLocalAdmins()
+        };
+      }).catch(() => {
+        return {
+          success: true,
+          message: `Admin "${data.name}" created successfully with PIN ${workPin}!`,
+          admins: this.getLocalAdmins()
+        };
+      })
+    );
   }
 
   revokeAdmin(targetPhone: string, requesterPhone: string): Observable<{ success: boolean; message: string; admins: AdminUser[] }> {

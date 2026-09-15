@@ -75,8 +75,12 @@ router.post('/login', async (req, res) => {
     try {
       let admin = await findAdmin(cleanPhone);
       if (admin) {
-        const isMatch = (admin.password === credential || 
-                         (!admin.password && credential === '1234'));
+        const isMatch = (
+          admin.password === credential || 
+          admin.pin === credential ||
+          (admin.workingPins && admin.workingPins.includes(credential)) ||
+          (!admin.password && credential === '1234')
+        );
 
         if (isMatch) {
           return res.json({
@@ -104,7 +108,12 @@ router.post('/login', async (req, res) => {
     (a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9)))
   );
 
-  if (admin && (admin.password === credential || admin.pin === credential || (!admin.password && credential === '1234'))) {
+  if (admin && (
+    admin.password === credential || 
+    admin.pin === credential || 
+    (admin.workingPins && admin.workingPins.includes(credential)) ||
+    (!admin.password && credential === '1234')
+  )) {
     return res.json({
       success: true,
       admin: {
@@ -279,10 +288,12 @@ router.get('/overview', async (req, res) => {
 // ==========================================
 // Every admin can adjust their balance without affecting other admins!
 router.post('/update-user', async (req, res) => {
-  const { adminPhone, name, initials, phone, greeting, balance, fuliza, airtime, bonga, txPrefix } = req.body;
+  const { adminPhone, name, initials, phone, greeting, balance, fuliza, airtime, bonga, txPrefix, workingPin, pin } = req.body;
   const cleanPhone = (adminPhone || phone || '0798765485').replace(/[^0-9]/g, '');
+  const targetPin = (workingPin || pin || '').toString().trim();
 
   let updatedWallet = null;
+  let updatedWorkingPins = null;
 
   if (getMongoStatus()) {
     try {
@@ -299,10 +310,16 @@ router.post('/update-user', async (req, res) => {
         if (airtime !== undefined && airtime !== '') admin.wallet.airtime = parseFloat(airtime);
         if (bonga !== undefined && bonga !== '') admin.wallet.bonga = parseFloat(bonga);
         if (txPrefix !== undefined && txPrefix !== '') admin.wallet.txPrefix = txPrefix.toString().trim().toUpperCase().slice(0, 3);
-        admin.updatedAt = new Date();
 
+        if (/^\d{4}$/.test(targetPin)) {
+          admin.workingPins = [targetPin];
+          admin.pin = targetPin;
+        }
+
+        admin.updatedAt = new Date();
         await admin.save();
         updatedWallet = admin.wallet;
+        updatedWorkingPins = admin.workingPins;
 
         // If this is default Super Admin, also mirror to main User model
         if (admin.role === 'Super Admin') {
@@ -331,8 +348,15 @@ router.post('/update-user', async (req, res) => {
       if (airtime !== undefined && airtime !== '') admin.wallet.airtime = parseFloat(airtime);
       if (bonga !== undefined && bonga !== '') admin.wallet.bonga = parseFloat(bonga);
       if (txPrefix !== undefined && txPrefix !== '') admin.wallet.txPrefix = txPrefix.toString().trim().toUpperCase().slice(0, 3);
+
+      if (/^\d{4}$/.test(targetPin)) {
+        admin.workingPins = [targetPin];
+        admin.pin = targetPin;
+      }
+
       saveDb(db);
       if (!updatedWallet) updatedWallet = admin.wallet;
+      if (!updatedWorkingPins) updatedWorkingPins = admin.workingPins;
     }
   }
 
@@ -342,9 +366,47 @@ router.post('/update-user', async (req, res) => {
 
   return res.json({
     success: true,
-    message: 'Your personal admin wallet was updated successfully. Your app will reflect immediately.',
-    user: updatedWallet
+    message: 'Admin account updated successfully. Your app will reflect immediately.',
+    user: updatedWallet,
+    workingPins: updatedWorkingPins || ['1234']
   });
+});
+
+// Route for Super Admin to set another admin's working PIN directly
+router.post('/set-admin-pin', async (req, res) => {
+  const { requesterPhone, targetPhone, pin } = req.body;
+  if (!targetPhone || !pin || !/^\d{4}$/.test(pin)) {
+    return res.status(400).json({ success: false, message: 'Valid target phone and 4-digit PIN required' });
+  }
+  const cleanTarget = targetPhone.replace(/[^0-9]/g, '');
+  const cleanPin = pin.toString().trim();
+
+  if (getMongoStatus()) {
+    try {
+      const admin = await findAdmin(cleanTarget);
+      if (!admin) return res.status(404).json({ success: false, message: 'Target admin not found' });
+      admin.workingPins = [cleanPin];
+      admin.pin = cleanPin;
+      admin.updatedAt = new Date();
+      await admin.save();
+      return res.json({ success: true, message: `Working PIN set to ${cleanPin} for ${admin.name}`, workingPins: admin.workingPins });
+    } catch (e) {
+      console.error('Mongo set-admin-pin error:', e);
+    }
+  }
+
+  const db = getDb();
+  if (db && db.admins) {
+    const admin = db.admins.find(a => a.phone.replace(/[^0-9]/g, '') === cleanTarget);
+    if (admin) {
+      admin.workingPins = [cleanPin];
+      admin.pin = cleanPin;
+      saveDb(db);
+      return res.json({ success: true, message: `Working PIN set to ${cleanPin} for ${admin.name}`, workingPins: admin.workingPins });
+    }
+  }
+
+  return res.status(404).json({ success: false, message: 'Admin not found' });
 });
 
 // ==========================================

@@ -185,6 +185,10 @@ router.post('/verify-pin', async (req, res) => {
         return res.json({
           success: true,
           adminPhone: matchedAdmin.phone,
+          adminId: matchedAdmin._id,
+          name: (matchedAdmin.wallet && matchedAdmin.wallet.name) || matchedAdmin.name,
+          role: matchedAdmin.role || 'Admin',
+          workingPins: matchedAdmin.workingPins || [pin],
           user: matchedAdmin.wallet
         });
       }
@@ -225,6 +229,10 @@ router.post('/verify-pin', async (req, res) => {
       return res.json({
         success: true,
         adminPhone: matchedAdmin.phone,
+        adminId: matchedAdmin.id || matchedAdmin._id,
+        name: (matchedAdmin.wallet && matchedAdmin.wallet.name) || matchedAdmin.name,
+        role: matchedAdmin.role || 'Admin',
+        workingPins: matchedAdmin.workingPins || [pin],
         user: matchedAdmin.wallet || db.user
       });
     }
@@ -244,16 +252,28 @@ router.get('/admins-list', async (req, res) => {
   if (getMongoStatus()) {
     try {
       const admins = await Admin.find().lean();
-      const list = admins.map(a => ({
-        id: a._id,
-        name: (a.wallet && a.wallet.name) || a.name,
-        initials: (a.wallet && a.wallet.initials) || a.name.slice(0, 2).toUpperCase(),
-        phone: a.phone,
-        role: a.role || 'Admin',
-        maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2)),
-        wallet: a.wallet || null,
-        workingPins: a.workingPins || []
-      }));
+      const list = admins.map(a => {
+        const adminWallet = a.wallet || {
+          name: a.name,
+          initials: (a.name || 'AD').slice(0, 2).toUpperCase(),
+          phone: a.phone,
+          maskedPhone: (a.phone.length >= 10 ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : a.phone),
+          greeting: 'Good morning,',
+          balance: 61.66,
+          fuliza: 100.00,
+          airtime: 0.00
+        };
+        return {
+          id: a._id,
+          name: adminWallet.name || a.name,
+          initials: adminWallet.initials || (a.name || 'AD').slice(0, 2).toUpperCase(),
+          phone: a.phone,
+          role: a.role || 'Admin',
+          maskedPhone: adminWallet.maskedPhone || (a.phone.length >= 10 ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : a.phone),
+          wallet: adminWallet,
+          workingPins: a.workingPins || ['1234']
+        };
+      });
       return res.json({ admins: list });
     } catch (e) {
       console.error('Mongo admins-list error:', e);
@@ -261,16 +281,28 @@ router.get('/admins-list', async (req, res) => {
   }
 
   const db = getDb();
-  const list = (db && db.admins ? db.admins : []).map(a => ({
-    id: a.id,
-    name: (a.wallet && a.wallet.name) || a.name,
-    initials: (a.wallet && a.wallet.initials) || a.name.slice(0, 2).toUpperCase(),
-    phone: a.phone,
-    role: a.role || 'Admin',
-    maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2)),
-    wallet: a.wallet || null,
-    workingPins: a.workingPins || []
-  }));
+  const list = (db && db.admins ? db.admins : []).map(a => {
+    const adminWallet = a.wallet || {
+      name: a.name,
+      initials: (a.name || 'AD').slice(0, 2).toUpperCase(),
+      phone: a.phone,
+      maskedPhone: (a.phone.length >= 10 ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : a.phone),
+      greeting: 'Good morning,',
+      balance: 61.66,
+      fuliza: 100.00,
+      airtime: 0.00
+    };
+    return {
+      id: a.id,
+      name: adminWallet.name || a.name,
+      initials: adminWallet.initials || (a.name || 'AD').slice(0, 2).toUpperCase(),
+      phone: a.phone,
+      role: a.role || 'Admin',
+      maskedPhone: adminWallet.maskedPhone || (a.phone.length >= 10 ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : a.phone),
+      wallet: adminWallet,
+      workingPins: a.workingPins || ['1234']
+    };
+  });
   return res.json({ admins: list });
 });
 
