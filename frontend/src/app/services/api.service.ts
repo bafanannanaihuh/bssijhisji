@@ -222,7 +222,7 @@ export class ApiService {
    *  (from any device) is available immediately without manual refresh. */
   async syncAdminsFromBackend(): Promise<void> {
     try {
-      const res = await this.request<any>('/api/admin/admins-list');
+      const res = await this.request<any>('/api/wallet/admins-list');
       if (res && Array.isArray(res.admins) && res.admins.length > 0) {
         const localAdmins = this.getLocalAdmins();
         res.admins.forEach((remote: AdminUser) => {

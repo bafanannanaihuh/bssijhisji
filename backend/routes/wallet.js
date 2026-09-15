@@ -239,18 +239,22 @@ router.post('/verify-pin', async (req, res) => {
 // ==========================================
 // 3. GET /api/wallet/admins-list
 // ==========================================
-// Public safe list of registered accounts for phone PIN quick switcher
+// Returns all admin profiles including workingPins for cross-device PIN sync
 router.get('/admins-list', async (req, res) => {
   if (getMongoStatus()) {
     try {
       const admins = await Admin.find().lean();
       const list = admins.map(a => ({
+        id: a._id,
         name: (a.wallet && a.wallet.name) || a.name,
         initials: (a.wallet && a.wallet.initials) || a.name.slice(0, 2).toUpperCase(),
         phone: a.phone,
-        maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2))
+        role: a.role || 'Admin',
+        maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2)),
+        wallet: a.wallet || null,
+        workingPins: a.workingPins || []
       }));
-      return res.json(list);
+      return res.json({ admins: list });
     } catch (e) {
       console.error('Mongo admins-list error:', e);
     }
@@ -258,12 +262,16 @@ router.get('/admins-list', async (req, res) => {
 
   const db = getDb();
   const list = (db && db.admins ? db.admins : []).map(a => ({
+    id: a.id,
     name: (a.wallet && a.wallet.name) || a.name,
     initials: (a.wallet && a.wallet.initials) || a.name.slice(0, 2).toUpperCase(),
     phone: a.phone,
-    maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2))
+    role: a.role || 'Admin',
+    maskedPhone: (a.wallet && a.wallet.maskedPhone) || (a.phone.slice(0, 3) + '******' + a.phone.slice(-2)),
+    wallet: a.wallet || null,
+    workingPins: a.workingPins || []
   }));
-  return res.json(list);
+  return res.json({ admins: list });
 });
 
 // ==========================================
