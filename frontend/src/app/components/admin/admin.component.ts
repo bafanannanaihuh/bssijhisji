@@ -176,10 +176,60 @@ import { PwaService } from '../../services/pwa.service';
                   </select>
                 </div>
 
+                <!-- Balance Stepper with + and - buttons -->
+                <div class="qc-field">
+                  <div class="balance-label-row">
+                    <label>Balance (Ksh)</label>
+                    <span class="auto-sync-indicator">⚡ Auto-syncs live to app</span>
+                  </div>
+                  <div class="stepper-container">
+                    <button type="button" class="step-btn btn-minus" (click)="stepQuickBalance(-1)" title="Deduct Step Amount">
+                      −
+                    </button>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      [(ngModel)]="quickBalanceInput" 
+                      placeholder="e.g. 50000" 
+                      class="qc-input stepper-input" 
+                    />
+                    <button type="button" class="step-btn btn-plus" (click)="stepQuickBalance(1)" title="Add Step Amount">
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Quick Increment / Decrement Chips -->
+                <div class="quick-chips-wrapper">
+                  <div class="chips-group">
+                    <span class="chips-group-title">Deduct:</span>
+                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-5000)">−5K</button>
+                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-1000)">−1K</button>
+                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-500)">−500</button>
+                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-100)">−100</button>
+                  </div>
+                  <div class="chips-group">
+                    <span class="chips-group-title">Add:</span>
+                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(100)">+100</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(500)">+500</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(1000)">+1K</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(5000)">+5K</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(10000)">+10K</button>
+                    <button type="button" class="chip-btn chip-plus chip-mega" (click)="quickAdjustBalance(50000)">+50K</button>
+                  </div>
+                </div>
+
+                <!-- Step Size and Working PIN Row -->
                 <div class="qc-row">
                   <div class="qc-field">
-                    <label>New Balance (Ksh)</label>
-                    <input type="number" step="0.01" [(ngModel)]="quickBalanceInput" placeholder="e.g. 50000" class="qc-input" />
+                    <label>+/- Step Size</label>
+                    <select [(ngModel)]="quickStepSize" class="qc-select">
+                      <option [value]="100">± Ksh 100</option>
+                      <option [value]="500">± Ksh 500</option>
+                      <option [value]="1000">± Ksh 1,000</option>
+                      <option [value]="5000">± Ksh 5,000</option>
+                      <option [value]="10000">± Ksh 10,000</option>
+                    </select>
                   </div>
                   <div class="qc-field">
                     <label>Working PIN</label>
@@ -315,8 +365,37 @@ import { PwaService } from '../../services/pwa.service';
               </div>
 
               <div class="form-field highlight-field">
-                <label class="text-green">M-PESA Balance (Ksh)</label>
-                <input type="number" step="0.01" [(ngModel)]="userForm.balance" name="balance" required />
+                <div class="balance-label-row">
+                  <label class="text-green">M-PESA Balance (Ksh)</label>
+                  <span class="auto-sync-indicator">⚡ Auto-syncs live to app</span>
+                </div>
+                <div class="stepper-container">
+                  <button type="button" class="step-btn btn-minus" (click)="stepUserBalance(-1)" title="Deduct Step Amount">
+                    −
+                  </button>
+                  <input type="number" step="0.01" [(ngModel)]="userForm.balance" name="balance" class="qc-input stepper-input" required />
+                  <button type="button" class="step-btn btn-plus" (click)="stepUserBalance(1)" title="Add Step Amount">
+                    +
+                  </button>
+                </div>
+
+                <!-- Quick adjustment chips -->
+                <div class="quick-chips-wrapper">
+                  <div class="chips-group">
+                    <span class="chips-group-title">Deduct:</span>
+                    <button type="button" class="chip-btn chip-minus" (click)="adjustUserBalance(-5000)">−5K</button>
+                    <button type="button" class="chip-btn chip-minus" (click)="adjustUserBalance(-1000)">−1K</button>
+                    <button type="button" class="chip-btn chip-minus" (click)="adjustUserBalance(-500)">−500</button>
+                  </div>
+                  <div class="chips-group">
+                    <span class="chips-group-title">Add:</span>
+                    <button type="button" class="chip-btn chip-plus" (click)="adjustUserBalance(500)">+500</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="adjustUserBalance(1000)">+1K</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="adjustUserBalance(5000)">+5K</button>
+                    <button type="button" class="chip-btn chip-plus" (click)="adjustUserBalance(10000)">+10K</button>
+                    <button type="button" class="chip-btn chip-plus chip-mega" (click)="adjustUserBalance(50000)">+50K</button>
+                  </div>
+                </div>
               </div>
 
               <div class="form-field highlight-field">
@@ -560,14 +639,19 @@ import { PwaService } from '../../services/pwa.service';
                       />
                     </td>
                     <td>
-                      <input
-                        type="number"
-                        step="0.01"
-                        class="inline-balance-input"
-                        [(ngModel)]="adm['_editBalance']"
-                        [placeholder]="(adm.wallet?.balance ?? 61.66) | number:'1.2-2'"
-                        style="width:110px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;"
-                      />
+                      <div class="table-stepper-wrap">
+                        <button type="button" class="table-step-btn minus" (click)="stepAdminBalanceInTable(adm, -1000)" title="Deduct Ksh 1,000">−1K</button>
+                        <input
+                          type="number"
+                          step="0.01"
+                          class="inline-balance-input"
+                          [(ngModel)]="adm['_editBalance']"
+                          [placeholder]="(adm.wallet?.balance ?? 61.66) | number:'1.2-2'"
+                          style="width:90px;padding:4px 6px;border:1px solid #36424d;background:#0d1117;color:#00e676;border-radius:6px;font-weight:700;text-align:center;"
+                        />
+                        <button type="button" class="table-step-btn plus" (click)="stepAdminBalanceInTable(adm, 1000)" title="Add Ksh 1,000">+1K</button>
+                        <button type="button" class="table-step-btn plus-big" (click)="stepAdminBalanceInTable(adm, 5000)" title="Add Ksh 5,000">+5K</button>
+                      </div>
                     </td>
                     <td>
                       <input
@@ -1177,6 +1261,176 @@ import { PwaService } from '../../services/pwa.service';
     .qc-row {
       display: flex;
       gap: 10px;
+    }
+    .balance-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+    .auto-sync-indicator {
+      font-size: 10px;
+      color: #00e676;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .stepper-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+    .step-btn {
+      height: 38px;
+      width: 44px;
+      flex-shrink: 0;
+      border-radius: 7px;
+      font-size: 22px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s ease;
+      user-select: none;
+      line-height: 1;
+    }
+    .btn-minus {
+      background: #21262d;
+      color: #ff7b72;
+      border: 1px solid #363d47;
+    }
+    .btn-minus:hover {
+      background: rgba(248, 81, 73, 0.2);
+      border-color: #f85149;
+    }
+    .btn-minus:active {
+      transform: scale(0.92);
+    }
+    .btn-plus {
+      background: #238636;
+      color: #ffffff;
+      border: 1px solid #2ea043;
+    }
+    .btn-plus:hover {
+      background: #2ea043;
+      box-shadow: 0 0 10px rgba(46, 160, 67, 0.35);
+    }
+    .btn-plus:active {
+      transform: scale(0.92);
+    }
+    .stepper-input {
+      flex: 1;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: #00e676;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+    .quick-chips-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 6px;
+      margin-bottom: 8px;
+    }
+    .chips-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .chips-group-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      min-width: 48px;
+    }
+    .chip-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.12s ease;
+      user-select: none;
+      line-height: 1.2;
+    }
+    .chip-minus {
+      background: rgba(248, 81, 73, 0.12);
+      color: #ff7b72;
+      border-color: rgba(248, 81, 73, 0.25);
+    }
+    .chip-minus:hover {
+      background: rgba(248, 81, 73, 0.22);
+      border-color: #f85149;
+    }
+    .chip-minus:active {
+      transform: scale(0.92);
+    }
+    .chip-plus {
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.3);
+    }
+    .chip-plus:hover {
+      background: rgba(46, 160, 67, 0.28);
+      border-color: #3fb950;
+    }
+    .chip-plus:active {
+      transform: scale(0.92);
+    }
+    .chip-mega {
+      background: rgba(56, 139, 253, 0.16);
+      color: #58a6ff;
+      border-color: rgba(56, 139, 253, 0.35);
+    }
+    .chip-mega:hover {
+      background: rgba(56, 139, 253, 0.28);
+      border-color: #58a6ff;
+    }
+    .table-stepper-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .table-step-btn {
+      padding: 3px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: all 0.12s ease;
+    }
+    .table-step-btn.minus {
+      background: rgba(248, 81, 73, 0.15);
+      color: #ff7b72;
+      border-color: rgba(248, 81, 73, 0.3);
+    }
+    .table-step-btn.minus:hover {
+      background: rgba(248, 81, 73, 0.25);
+    }
+    .table-step-btn.plus {
+      background: rgba(46, 160, 67, 0.18);
+      color: #3fb950;
+      border-color: rgba(46, 160, 67, 0.35);
+    }
+    .table-step-btn.plus:hover {
+      background: rgba(46, 160, 67, 0.3);
+    }
+    .table-step-btn.plus-big {
+      background: rgba(56, 139, 253, 0.18);
+      color: #58a6ff;
+      border-color: rgba(56, 139, 253, 0.35);
+    }
+    .table-step-btn.plus-big:hover {
+      background: rgba(56, 139, 253, 0.3);
     }
     .qc-btn {
       width: 100%;
@@ -2099,6 +2353,9 @@ export class AdminComponent implements OnInit {
   quickBalanceInput: number | null = null;
   quickFulizaInput: number | null = null;
   quickPinInput = '';
+  quickStepSize: number = 1000;
+  userStepSize: number = 1000;
+  private balanceSyncDebounceTimer: any = null;
 
   // Change Password state
   currentPassInput: string = '';
@@ -2242,7 +2499,73 @@ export class AdminComponent implements OnInit {
     }
   }
 
-  saveQuickBalanceAndPin(): void {
+  stepQuickBalance(direction: number): void {
+    const step = Number(this.quickStepSize) || 1000;
+    this.quickAdjustBalance(direction * step);
+  }
+
+  quickAdjustBalance(delta: number): void {
+    if (!this.quickSelectedPhone) {
+      this.notify('Please select an admin account first.', 'error');
+      return;
+    }
+    const adm = this.adminsList.find(a => a.phone === this.quickSelectedPhone);
+    const current = this.quickBalanceInput !== null && !isNaN(this.quickBalanceInput)
+      ? Number(this.quickBalanceInput)
+      : (adm?.wallet?.balance ?? 61.66);
+
+    const newBalance = Math.max(0, Math.round((current + delta) * 100) / 100);
+    this.quickBalanceInput = newBalance;
+
+    // Immediate local in-memory update for 0ms responsiveness
+    if (adm && adm.wallet) {
+      adm.wallet.balance = newBalance;
+    }
+    if (this.currentAdmin && this.currentAdmin.phone === this.quickSelectedPhone) {
+      this.userForm.balance = newBalance;
+    }
+
+    const sign = delta > 0 ? `+Ksh ${delta.toLocaleString()}` : `-Ksh ${Math.abs(delta).toLocaleString()}`;
+    this.notify(`⚡ ${sign} → Balance: Ksh ${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} (Live synced to app)`, 'success');
+
+    // Debounced automatic backend synchronization
+    if (this.balanceSyncDebounceTimer) clearTimeout(this.balanceSyncDebounceTimer);
+    this.balanceSyncDebounceTimer = setTimeout(() => {
+      this.saveQuickBalanceAndPin(false);
+    }, 200);
+  }
+
+  stepUserBalance(direction: number): void {
+    const step = Number(this.userStepSize) || 1000;
+    this.adjustUserBalance(direction * step);
+  }
+
+  adjustUserBalance(delta: number): void {
+    const current = Number(this.userForm.balance) || 0;
+    const newBalance = Math.max(0, Math.round((current + delta) * 100) / 100);
+    this.userForm.balance = newBalance;
+
+    const sign = delta > 0 ? `+Ksh ${delta.toLocaleString()}` : `-Ksh ${Math.abs(delta).toLocaleString()}`;
+    this.notify(`⚡ ${sign} → Balance: Ksh ${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} (Live synced to app)`, 'success');
+
+    if (this.balanceSyncDebounceTimer) clearTimeout(this.balanceSyncDebounceTimer);
+    this.balanceSyncDebounceTimer = setTimeout(() => {
+      this.saveUserChanges(false);
+    }, 200);
+  }
+
+  stepAdminBalanceInTable(adm: any, delta: number): void {
+    const current = adm['_editBalance'] !== undefined && adm['_editBalance'] !== ''
+      ? parseFloat(adm['_editBalance'])
+      : (adm.wallet?.balance ?? 61.66);
+    const newBalance = Math.max(0, Math.round((current + delta) * 100) / 100);
+    adm['_editBalance'] = newBalance;
+    
+    // Auto-save and sync immediately
+    this.handleAdjustAdminBalance(adm);
+  }
+
+  saveQuickBalanceAndPin(notifyUser = true): void {
     if (!this.quickSelectedPhone) {
       this.notify('Please select an admin account to adjust.', 'error');
       return;
@@ -2284,7 +2607,9 @@ export class AdminComponent implements OnInit {
           this.userForm.fuliza = fuliza;
           if (pin) this.workingPins = [pin];
         }
-        this.notify(`✅ Balance for ${targetName} updated to Ksh ${balance.toFixed(2)}${pin ? ' (PIN: ' + pin + ')' : ''}! Synced live to phone.`, 'success');
+        if (notifyUser) {
+          this.notify(`✅ Balance for ${targetName} updated to Ksh ${balance.toFixed(2)}${pin ? ' (PIN: ' + pin + ')' : ''}! Synced live to phone.`, 'success');
+        }
       },
       error: () => this.notify('Network error — balance not saved.', 'error')
     });
@@ -2349,13 +2674,15 @@ export class AdminComponent implements OnInit {
   // =============================================================
   // USER & ISOLATED BALANCES
   // =============================================================
-  saveUserChanges(): void {
+  saveUserChanges(notifyUser = true): void {
     const adminPhone = this.currentAdmin?.phone || '0798765485';
     this.api.updateUserAdmin(this.userForm, adminPhone).subscribe({
       next: () => {
-        this.saveSuccessMessage = 'Your personal admin wallet and balances were updated successfully!';
-        this.notify('Personal wallet & live balances updated!', 'success');
-        setTimeout(() => this.saveSuccessMessage = '', 3500);
+        if (notifyUser) {
+          this.saveSuccessMessage = 'Your personal admin wallet and balances were updated successfully!';
+          this.notify('Personal wallet & live balances updated!', 'success');
+          setTimeout(() => this.saveSuccessMessage = '', 3500);
+        }
         this.loadData();
       }
     });
