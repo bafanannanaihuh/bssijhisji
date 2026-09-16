@@ -42,6 +42,121 @@ import { PwaService } from '../../services/pwa.service';
         </div>
       </div>
 
+      <!-- Interactive Balance Adjustment Modal (Options to adjust with certain amount) -->
+      <div class="modal-backdrop" *ngIf="showAdjustBalanceModal" (click)="closeBalanceModal()">
+        <div class="balance-adjust-dialog" (click)="$event.stopPropagation()">
+          <div class="modal-head-row">
+            <div class="modal-head-title">
+              <span class="modal-coin-icon">💰</span>
+              <div>
+                <h3 class="modal-title" style="margin-bottom:2px;text-align:left;">Adjust Live Balance</h3>
+                <p class="modal-admin-sub">
+                  Admin: <strong>{{ adjustTargetAdmin?.name }}</strong> (<code>{{ adjustTargetAdmin?.phone }}</code>)
+                </p>
+              </div>
+            </div>
+            <button type="button" class="modal-close-x" (click)="closeBalanceModal()">✕</button>
+          </div>
+
+          <!-- Current Live Balance Banner -->
+          <div class="current-bal-banner">
+            <span class="cbb-label">Current App Balance:</span>
+            <span class="cbb-val">Ksh {{ (adjustTargetAdmin?.wallet?.balance ?? 61.66) | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- Adjustment Mode Switcher -->
+          <div class="adjust-mode-toggle">
+            <button 
+              type="button" 
+              class="mode-pill-btn" 
+              [class.active-add]="adjustMode === 'add'" 
+              (click)="adjustMode = 'add'">
+              ➕ Add Money (+)
+            </button>
+            <button 
+              type="button" 
+              class="mode-pill-btn" 
+              [class.active-sub]="adjustMode === 'subtract'" 
+              (click)="adjustMode = 'subtract'">
+              ➖ Deduct Money (−)
+            </button>
+          </div>
+
+          <!-- Quick Amount Options ("option to adjust the balance with a certain amount") -->
+          <div class="amount-options-section">
+            <label class="section-micro-label">
+              Select Amount to {{ adjustMode === 'add' ? 'Add (+)' : 'Deduct (−)' }}:
+            </label>
+            
+            <div class="amount-presets-grid" *ngIf="adjustMode === 'add'">
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 500" (click)="selectAdjustAmount(500)">+500</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 1000" (click)="selectAdjustAmount(1000)">+1,000</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 2000" (click)="selectAdjustAmount(2000)">+2,000</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 5000" (click)="selectAdjustAmount(5000)">+5,000</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 10000" (click)="selectAdjustAmount(10000)">+10,000</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 20000" (click)="selectAdjustAmount(20000)">+20,000</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 50000" (click)="selectAdjustAmount(50000)">+50,000</button>
+              <button type="button" class="preset-btn" [class.selected]="adjustAmountInput === 100000" (click)="selectAdjustAmount(100000)">+100,000</button>
+            </div>
+
+            <div class="amount-presets-grid" *ngIf="adjustMode === 'subtract'">
+              <button type="button" class="preset-btn sub-preset" [class.selected]="adjustAmountInput === 500" (click)="selectAdjustAmount(500)">−500</button>
+              <button type="button" class="preset-btn sub-preset" [class.selected]="adjustAmountInput === 1000" (click)="selectAdjustAmount(1000)">−1,000</button>
+              <button type="button" class="preset-btn sub-preset" [class.selected]="adjustAmountInput === 2000" (click)="selectAdjustAmount(2000)">−2,000</button>
+              <button type="button" class="preset-btn sub-preset" [class.selected]="adjustAmountInput === 5000" (click)="selectAdjustAmount(5000)">−5,000</button>
+              <button type="button" class="preset-btn sub-preset" [class.selected]="adjustAmountInput === 10000" (click)="selectAdjustAmount(10000)">−10,000</button>
+              <button type="button" class="preset-btn sub-preset" [class.selected]="adjustAmountInput === 20000" (click)="selectAdjustAmount(20000)">−20,000</button>
+            </div>
+
+            <!-- Custom Amount Input -->
+            <div class="custom-amount-field">
+              <label>Or enter custom amount (Ksh):</label>
+              <div class="custom-amt-row">
+                <span class="currency-tag">Ksh</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  [(ngModel)]="adjustAmountInput" 
+                  placeholder="e.g. 15000" 
+                  class="custom-amt-input" 
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-Time Calculation Preview -->
+          <div class="calc-preview-box">
+            <div class="calc-line">
+              <span>Current Balance:</span>
+              <span>Ksh {{ (adjustTargetAdmin?.wallet?.balance ?? 61.66) | number:'1.2-2' }}</span>
+            </div>
+            <div class="calc-line highlight">
+              <span>{{ adjustMode === 'add' ? 'Amount Adding (+):' : 'Amount Deducting (−):' }}</span>
+              <span [class.text-green]="adjustMode === 'add'" [class.text-red]="adjustMode === 'subtract'">
+                {{ adjustMode === 'add' ? '+' : '−' }} Ksh {{ (adjustAmountInput || 0) | number:'1.2-2' }}
+              </span>
+            </div>
+            <div class="calc-line-divider"></div>
+            <div class="calc-line total">
+              <span>New Live Balance:</span>
+              <span class="new-bal-val">Ksh {{ calculatedNewBalance | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <!-- Modal Actions -->
+          <div class="modal-dialog-actions">
+            <button type="button" class="cancel-btn" (click)="closeBalanceModal()">Cancel</button>
+            <button 
+              type="button" 
+              class="primary-btn confirm-sync-btn"
+              [class.danger-btn]="adjustMode === 'subtract'"
+              (click)="confirmBalanceAdjustment()">
+              ⚡ Confirm & {{ adjustMode === 'add' ? 'Add' : 'Deduct' }} (Sync to App)
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Admin Top Bar -->
       <div class="admin-topbar">
         <div class="topbar-left">
@@ -237,9 +352,14 @@ import { PwaService } from '../../services/pwa.service';
                   </div>
                 </div>
 
-                <button type="button" class="qc-btn primary-qc-btn" (click)="saveQuickBalanceAndPin()">
-                  ⚡ Save & Sync to Phone
-                </button>
+                <div class="qc-action-row" style="display:flex;gap:8px;">
+                  <button type="button" class="qc-btn primary-qc-btn" style="flex:1;" (click)="saveQuickBalanceAndPin()">
+                    ⚡ Save & Sync
+                  </button>
+                  <button type="button" class="qc-btn" style="flex:1;background:#1e262c;border:1px solid #00c853;color:#00e676;" (click)="openQuickModal('add')">
+                    ➕ Choose Amount
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -520,6 +640,68 @@ import { PwaService } from '../../services/pwa.service';
         <!-- TAB 2: Multi-Admin Management (SUPER ADMIN ONLY)              -->
         <!-- ============================================================= -->
         <div class="tab-pane" *ngIf="activeTab === 'admins' && currentAdmin?.role === 'Super Admin'">
+          <!-- FAST LIVE BALANCE ADJUSTER FOR EACH ADMIN (CARDS VIEW) -->
+          <div class="section-card admin-balances-hub">
+            <div class="hub-title-row">
+              <div>
+                <h3 class="card-title">💰 Live Balance Adjuster for Each Admin</h3>
+                <p class="card-desc">
+                  Click the <strong>+</strong> button on any admin below to choose an amount and immediately update their live app balance.
+                </p>
+              </div>
+              <span class="hub-pill">Instant Sync to App</span>
+            </div>
+
+            <div class="admin-cards-grid">
+              <div class="admin-balance-card" *ngFor="let adm of adminsList">
+                <div class="abc-top">
+                  <div class="abc-profile">
+                    <div class="avatar-mini">{{ adm.name.slice(0, 2).toUpperCase() }}</div>
+                    <div>
+                      <h4 class="abc-name">{{ adm.name }} <span class="active-badge" *ngIf="adm.phone === currentAdmin?.phone">(You)</span></h4>
+                      <div class="abc-meta">
+                        <span class="abc-phone"><code>{{ adm.phone }}</code></span>
+                        <span class="role-pill" [class.super]="adm.role === 'Super Admin'">{{ adm.role }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="abc-pin-tag">
+                    <span class="pin-lbl">PIN:</span>
+                    <span class="pin-val">{{ (adm.workingPins && adm.workingPins[0]) || '1234' }}</span>
+                  </div>
+                </div>
+
+                <div class="abc-balance-box">
+                  <div class="abc-bal-label">LIVE APP BALANCE</div>
+                  <div class="abc-bal-amount">Ksh {{ (adm.wallet?.balance ?? 61.66) | number:'1.2-2' }}</div>
+                  <div class="abc-fuliza-sub">Fuliza: Ksh {{ (adm.wallet?.fuliza ?? 100) | number:'1.2-2' }}</div>
+                </div>
+
+                <!-- Prominent Plus and Minus Buttons -->
+                <div class="abc-action-buttons">
+                  <button type="button" class="abc-btn btn-plus-main" (click)="openBalanceModal(adm, 'add', 1000)" title="Adjust Balance">
+                    <span class="btn-icon">+</span>
+                    <span>Adjust Balance (+)</span>
+                  </button>
+                  <button type="button" class="abc-btn btn-minus-main" (click)="openBalanceModal(adm, 'subtract', 1000)" title="Deduct Balance">
+                    <span class="btn-icon">−</span>
+                    <span>Deduct (−)</span>
+                  </button>
+                </div>
+
+                <!-- Quick shortcut amount buttons directly on the card -->
+                <div class="abc-quick-pills">
+                  <span class="qp-txt">Quick Options:</span>
+                  <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 500)">+500</button>
+                  <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 1000)">+1K</button>
+                  <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 5000)">+5K</button>
+                  <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 10000)">+10K</button>
+                  <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 50000)">+50K</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="section-card">
             <h3 class="card-title">Super Admin Control: Create & Revoke Admins</h3>
             <p class="card-desc">
@@ -640,17 +822,17 @@ import { PwaService } from '../../services/pwa.service';
                     </td>
                     <td>
                       <div class="table-stepper-wrap">
-                        <button type="button" class="table-step-btn minus" (click)="stepAdminBalanceInTable(adm, -1000)" title="Deduct Ksh 1,000">−1K</button>
+                        <button type="button" class="table-step-btn minus" (click)="openBalanceModal(adm, 'subtract', 1000)" title="Deduct Balance with Options">−</button>
                         <input
                           type="number"
                           step="0.01"
                           class="inline-balance-input"
                           [(ngModel)]="adm['_editBalance']"
                           [placeholder]="(adm.wallet?.balance ?? 61.66) | number:'1.2-2'"
-                          style="width:90px;padding:4px 6px;border:1px solid #36424d;background:#0d1117;color:#00e676;border-radius:6px;font-weight:700;text-align:center;"
+                          style="width:85px;padding:4px 6px;border:1px solid #36424d;background:#0d1117;color:#00e676;border-radius:6px;font-weight:700;text-align:center;"
                         />
-                        <button type="button" class="table-step-btn plus" (click)="stepAdminBalanceInTable(adm, 1000)" title="Add Ksh 1,000">+1K</button>
-                        <button type="button" class="table-step-btn plus-big" (click)="stepAdminBalanceInTable(adm, 5000)" title="Add Ksh 5,000">+5K</button>
+                        <button type="button" class="table-step-btn plus" (click)="openBalanceModal(adm, 'add', 1000)" title="Add Balance with Options">+</button>
+                        <button type="button" class="table-step-btn plus-big" (click)="openBalanceModal(adm, 'add', 5000)" title="Add Ksh 5,000">+5K</button>
                       </div>
                     </td>
                     <td>
@@ -660,15 +842,23 @@ import { PwaService } from '../../services/pwa.service';
                         class="inline-balance-input"
                         [(ngModel)]="adm['_editFuliza']"
                         [placeholder]="(adm.wallet?.fuliza ?? 100) | number:'1.2-2'"
-                        style="width:100px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;"
+                        style="width:90px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;"
                       />
                     </td>
                     <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                       <button
+                        type="button"
                         class="primary-btn"
-                        style="padding:5px 10px;font-size:12px;"
+                        style="padding:6px 12px;font-size:12px;display:inline-flex;align-items:center;gap:4px;background:#00c853;color:#000;"
+                        (click)="openBalanceModal(adm, 'add', 1000)"
+                        title="Adjust balance with options">
+                        ➕ Adjust Balance
+                      </button>
+                      <button
+                        class="primary-btn"
+                        style="padding:6px 10px;font-size:12px;background:#21262d;border:1px solid #30363d;color:#c9d1d9;"
                         (click)="handleAdjustAdminBalance(adm)"
-                        title="Save balance and PIN changes to MongoDB">
+                        title="Save manual inputs">
                         💾 Save
                       </button>
                       <button
@@ -1431,6 +1621,451 @@ import { PwaService } from '../../services/pwa.service';
     }
     .table-step-btn.plus-big:hover {
       background: rgba(56, 139, 253, 0.3);
+    }
+
+    /* Balance Adjustment Modal & Admin Balance Cards Grid */
+    .balance-adjust-dialog {
+      background: #161b20;
+      border: 1.5px solid #303b46;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.85);
+      box-sizing: border-box;
+      animation: zoomInDialog 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .modal-head-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .modal-head-title {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .modal-coin-icon {
+      font-size: 32px;
+    }
+    .modal-admin-sub {
+      font-size: 12.5px;
+      color: #8b949e;
+      margin: 0;
+    }
+    .modal-admin-sub strong {
+      color: #e6edf3;
+    }
+    .modal-close-x {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .modal-close-x:hover {
+      background: #30363d;
+      color: #ffffff;
+    }
+    .current-bal-banner {
+      background: #0d1117;
+      border: 1px solid #232d36;
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .cbb-label {
+      font-size: 12px;
+      color: #8b949e;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .cbb-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #00e676;
+      font-family: monospace;
+    }
+    .adjust-mode-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .mode-pill-btn {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #8b949e;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-pill-btn.active-add {
+      background: rgba(46, 160, 67, 0.2);
+      border-color: #2ea043;
+      color: #3fb950;
+    }
+    .mode-pill-btn.active-sub {
+      background: rgba(248, 81, 73, 0.2);
+      border-color: #f85149;
+      color: #ff7b72;
+    }
+    .amount-options-section {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .section-micro-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #7d8590;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .amount-presets-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .preset-btn {
+      padding: 9px 4px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #c9d1d9;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .preset-btn:hover {
+      background: #30363d;
+      color: #ffffff;
+    }
+    .preset-btn.selected {
+      background: #238636;
+      border-color: #2ea043;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(46, 160, 67, 0.4);
+    }
+    .preset-btn.sub-preset.selected {
+      background: #b62324;
+      border-color: #f85149;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(248, 81, 73, 0.4);
+    }
+    .custom-amount-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .custom-amount-field label {
+      font-size: 11.5px;
+      color: #8b949e;
+    }
+    .custom-amt-row {
+      display: flex;
+      align-items: center;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .currency-tag {
+      padding: 8px 12px;
+      background: #161b20;
+      color: #8b949e;
+      font-size: 13px;
+      font-weight: 700;
+      border-right: 1px solid #30363d;
+    }
+    .custom-amt-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 8px 12px;
+      color: #00e676;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .calc-preview-box {
+      background: #0d1117;
+      border: 1px solid #232d36;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .calc-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      color: #8b949e;
+      margin-bottom: 4px;
+    }
+    .calc-line.highlight {
+      font-weight: 700;
+    }
+    .calc-line-divider {
+      border-top: 1px solid #232d36;
+      margin: 8px 0;
+    }
+    .calc-line.total {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 0;
+    }
+    .new-bal-val {
+      color: #00e676;
+      font-family: monospace;
+      font-size: 17px;
+    }
+    .modal-dialog-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .confirm-sync-btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    /* Admin Balances Hub (Cards Grid in Admins Tab) */
+    .admin-balances-hub {
+      background: #141a20;
+      border: 1.5px solid #23303c;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .hub-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .hub-pill {
+      background: rgba(0, 200, 83, 0.15);
+      color: #00e676;
+      border: 1px solid rgba(0, 200, 83, 0.35);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .admin-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .admin-balance-card {
+      background: #1a222a;
+      border: 1px solid #2d3b48;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .admin-balance-card:hover {
+      border-color: #00c853;
+      transform: translateY(-2px);
+    }
+    .abc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .abc-profile {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .abc-name {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 2px 0;
+    }
+    .abc-meta {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .abc-phone {
+      font-size: 11px;
+      color: #8b949e;
+    }
+    .abc-pin-tag {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11.5px;
+      font-family: monospace;
+      font-weight: 700;
+      color: #00e676;
+      display: flex;
+      gap: 4px;
+    }
+    .abc-balance-box {
+      background: #0f141a;
+      border: 1px solid #26333f;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .abc-bal-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #7d8590;
+      letter-spacing: 0.6px;
+      margin-bottom: 2px;
+    }
+    .abc-bal-amount {
+      font-size: 24px;
+      font-weight: 900;
+      color: #00e676;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+    .abc-fuliza-sub {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+    .abc-action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .abc-btn {
+      flex: 1;
+      padding: 10px 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-plus-main {
+      background: #00c853;
+      color: #000000;
+    }
+    .btn-plus-main:hover {
+      background: #00e676;
+      box-shadow: 0 0 12px rgba(0, 200, 83, 0.4);
+    }
+    .btn-minus-main {
+      background: #21262d;
+      color: #ff7b72;
+      border: 1px solid #363d47;
+    }
+    .btn-minus-main:hover {
+      background: rgba(248, 81, 73, 0.2);
+      border-color: #f85149;
+    }
+    .abc-quick-pills {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .qp-txt {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #7d8590;
+      margin-right: 2px;
+    }
+    .qp-chip {
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(46, 160, 67, 0.15);
+      color: #3fb950;
+      border: 1px solid rgba(46, 160, 67, 0.3);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .qp-chip:hover {
+      background: rgba(46, 160, 67, 0.3);
+      border-color: #3fb950;
+    }
+    .table-bal-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .t-bal-val {
+      font-size: 13px;
+      font-weight: 800;
+      color: #00e676;
+      font-family: monospace;
+      white-space: nowrap;
+    }
+    .t-btns-group {
+      display: flex;
+      gap: 4px;
+    }
+    .tbl-step-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+      line-height: 1;
+    }
+    .tbl-step-btn.plus {
+      background: #238636;
+      color: #ffffff;
+    }
+    .tbl-step-btn.plus:hover {
+      background: #2ea043;
+    }
+    .tbl-step-btn.minus {
+      background: #21262d;
+      color: #ff7b72;
+      border: 1px solid #363d47;
+    }
+    .tbl-step-btn.minus:hover {
+      background: rgba(248, 81, 73, 0.2);
     }
     .qc-btn {
       width: 100%;
@@ -2357,6 +2992,12 @@ export class AdminComponent implements OnInit {
   userStepSize: number = 1000;
   private balanceSyncDebounceTimer: any = null;
 
+  // Interactive Balance Adjustment Modal State (Options to adjust with certain amount)
+  showAdjustBalanceModal: boolean = false;
+  adjustTargetAdmin: AdminUser | null = null;
+  adjustMode: 'add' | 'subtract' = 'add';
+  adjustAmountInput: number | null = 1000;
+
   // Change Password state
   currentPassInput: string = '';
   newPassInput: string = '';
@@ -2612,6 +3253,83 @@ export class AdminComponent implements OnInit {
         }
       },
       error: () => this.notify('Network error — balance not saved.', 'error')
+    });
+  }
+
+  openBalanceModal(admin: AdminUser, mode: 'add' | 'subtract' = 'add', defaultAmount: number = 1000): void {
+    this.adjustTargetAdmin = admin;
+    this.adjustMode = mode;
+    this.adjustAmountInput = defaultAmount;
+    this.showAdjustBalanceModal = true;
+  }
+
+  openQuickModal(mode: 'add' | 'subtract' = 'add'): void {
+    const admin = this.adminsList.find(a => a.phone === this.quickSelectedPhone) || this.adminsList[0] || (this.currentAdmin as AdminUser);
+    if (admin) {
+      this.openBalanceModal(admin, mode, 1000);
+    }
+  }
+
+  closeBalanceModal(): void {
+    this.showAdjustBalanceModal = false;
+    this.adjustTargetAdmin = null;
+    this.adjustAmountInput = 1000;
+  }
+
+  selectAdjustAmount(amount: number): void {
+    this.adjustAmountInput = amount;
+  }
+
+  get calculatedNewBalance(): number {
+    if (!this.adjustTargetAdmin) return 0;
+    const current = this.adjustTargetAdmin.wallet?.balance ?? 61.66;
+    const amt = Number(this.adjustAmountInput) || 0;
+    if (this.adjustMode === 'add') {
+      return Math.max(0, Math.round((current + amt) * 100) / 100);
+    } else {
+      return Math.max(0, Math.round((current - amt) * 100) / 100);
+    }
+  }
+
+  confirmBalanceAdjustment(): void {
+    if (!this.adjustTargetAdmin) return;
+    const admin = this.adjustTargetAdmin;
+    const amt = Number(this.adjustAmountInput);
+    if (isNaN(amt) || amt <= 0) {
+      this.notify('Please enter or select a valid amount.', 'error');
+      return;
+    }
+
+    const newBalance = this.calculatedNewBalance;
+    const fuliza = admin.wallet?.fuliza ?? 100.00;
+
+    const payload = {
+      balance: newBalance,
+      fuliza
+    };
+
+    this.api.updateUserAdmin(payload, admin.phone).subscribe({
+      next: (res) => {
+        const idx = this.adminsList.findIndex(a => a.phone === admin.phone);
+        if (idx >= 0) {
+          this.adminsList[idx].wallet = {
+            ...(this.adminsList[idx].wallet || {} as any),
+            balance: newBalance,
+            fuliza
+          };
+        }
+        if (this.currentAdmin && this.currentAdmin.phone === admin.phone) {
+          this.userForm.balance = newBalance;
+        }
+        if (this.quickSelectedPhone === admin.phone) {
+          this.quickBalanceInput = newBalance;
+        }
+
+        const actionWord = this.adjustMode === 'add' ? `Added +Ksh ${amt.toLocaleString()}` : `Deducted -Ksh ${amt.toLocaleString()}`;
+        this.notify(`✅ ${actionWord} for ${admin.name}! New Balance: Ksh ${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} — Synced to App.`, 'success');
+        this.closeBalanceModal();
+      },
+      error: () => this.notify('Network error — balance adjustment could not be saved.', 'error')
     });
   }
 
