@@ -16,8 +16,15 @@ async function connectDB() {
     isMongoConnected = true;
     return;
   }
-  const uri = process.env.MONGODB_URI || 'mongodb+srv://omorimbafana_db_user:FsA1vV0RvjrotzHC@cluster0.rc1rnme.mongodb.net/mpesa?retryWrites=true&w=majority';
-  console.log(`Connecting to MongoDB at: ${uri ? uri.slice(0, 25) + '...' : ''}`);
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn('⚠️ MONGODB_URI environment variable not set. Please configure MONGODB_URI in Render dashboard or local .env file.');
+    console.warn('⚡ Using local JSON database engine as fallback.');
+    isMongoConnected = false;
+    return;
+  }
+  const maskedUri = uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+  console.log(`Connecting to MongoDB at: ${maskedUri}`);
 
   try {
     mongoose.set('strictQuery', false);
