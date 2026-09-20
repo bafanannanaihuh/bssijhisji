@@ -1148,51 +1148,65 @@ export class ApiService {
   }
 
   async saveCustomLookup(phone: string, name: string): Promise<any> {
-    const payload = { phone, name, adminPhone: this.activeAdminPhone };
-    try {
-      const res = await this.request<any>('/api/admin/custom-lookups', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+    let formattedPhone = cleanPhone;
+    if (formattedPhone.length === 12 && formattedPhone.startsWith('254')) {
+      formattedPhone = '0' + formattedPhone.slice(3);
+    }
+    const cleanName = (name || '').trim().toUpperCase();
+
+    // 1. Immediately persist locally (instant 0ms)
+    const lookups = this.getLocalCustomLookups();
+    const idx = lookups.findIndex(c => {
+      const cp = (c.phone || '').replace(/\D/g, '');
+      return cp === cleanPhone || cp === formattedPhone.replace(/\D/g, '');
+    });
+    const entry: CustomLookup = {
+      _id: Date.now().toString(),
+      phone: formattedPhone,
+      name: cleanName,
+      adminPhone: this.activeAdminPhone
+    };
+    if (idx >= 0) {
+      lookups[idx] = entry;
+    } else {
+      lookups.unshift(entry);
+    }
+    this.saveLocalCustomLookups(lookups);
+
+    // 2. Sync to server in background without blocking UI
+    const payload = { phone: formattedPhone, name: cleanName, adminPhone: this.activeAdminPhone };
+    this.request<any>('/api/admin/custom-lookups', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }).then(res => {
       if (res && res.lookups) {
         this.saveLocalCustomLookups(res.lookups);
       }
-      return res;
-    } catch (err) {
-      // Local fallback
-      const lookups = this.getLocalCustomLookups();
-      const cleanPhone = phone.replace(/\D/g, '');
-      const idx = lookups.findIndex(c => c.phone.replace(/\D/g, '') === cleanPhone);
-      const entry: CustomLookup = {
-        _id: Date.now().toString(),
-        phone,
-        name: name.toUpperCase(),
-        adminPhone: this.activeAdminPhone
-      };
-      if (idx >= 0) {
-        lookups[idx] = entry;
-      } else {
-        lookups.unshift(entry);
-      }
-      this.saveLocalCustomLookups(lookups);
-      return { success: true, lookup: entry, lookups };
-    }
+    }).catch(err => {
+      console.warn('Background custom lookup sync warning:', err);
+    });
+
+    return { success: true, lookup: entry, lookups, message: `Recipient name for ${formattedPhone} saved as "${cleanName}"!` };
   }
 
   async deleteCustomLookup(idOrPhone: string): Promise<any> {
-    try {
-      const res = await this.request<any>(`/api/admin/custom-lookups/${encodeURIComponent(idOrPhone)}`, {
-        method: 'DELETE'
-      });
+    // 1. Immediately persist deletion locally (instant 0ms)
+    const lookups = this.getLocalCustomLookups().filter(c => c._id !== idOrPhone && c.phone !== idOrPhone);
+    this.saveLocalCustomLookups(lookups);
+
+    // 2. Sync deletion to server in background
+    this.request<any>(`/api/admin/custom-lookups/${encodeURIComponent(idOrPhone)}`, {
+      method: 'DELETE'
+    }).then(res => {
       if (res && res.lookups) {
         this.saveLocalCustomLookups(res.lookups);
       }
-      return res;
-    } catch (err) {
-      const lookups = this.getLocalCustomLookups().filter(c => c._id !== idOrPhone && c.phone !== idOrPhone);
-      this.saveLocalCustomLookups(lookups);
-      return { success: true, lookups };
-    }
+    }).catch(err => {
+      console.warn('Background delete custom lookup warning:', err);
+    });
+
+    return { success: true, lookups };
   }
 
   async updateAdminFull(payload: any): Promise<any> {

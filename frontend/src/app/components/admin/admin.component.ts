@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -3629,6 +3629,7 @@ export class AdminComponent implements OnInit {
   private api = inject(ApiService);
   private pwaService = inject(PwaService);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
 
   // Authentication State: Require password/PIN to log in
   currentAdmin: AdminUser | null = null;
@@ -3800,7 +3801,16 @@ export class AdminComponent implements OnInit {
 
   // Custom Lookups Methods
   async loadCustomLookups(): Promise<void> {
-    this.customLookupsList = await this.api.getCustomLookups();
+    this.customLookupsList = this.api.getLocalCustomLookups();
+    try {
+      const serverLookups = await this.api.getCustomLookups();
+      if (serverLookups && serverLookups.length) {
+        this.customLookupsList = serverLookups;
+      }
+    } catch {
+      // keep local lookups
+    }
+    this.cdr.detectChanges();
   }
 
   async handleAddCustomLookup(): Promise<void> {
@@ -3808,21 +3818,21 @@ export class AdminComponent implements OnInit {
       this.notify('Please provide both a phone number and recipient name', 'error');
       return;
     }
+    const phone = this.newLookupPhone.trim();
+    const name = this.newLookupName.trim().toUpperCase();
+
     this.isSavingLookup = true;
     try {
-      const res = await this.api.saveCustomLookup(this.newLookupPhone, this.newLookupName);
-      if (res && res.success) {
-        this.notify(res.message || 'Custom recipient name saved successfully!', 'success');
-        this.newLookupPhone = '';
-        this.newLookupName = '';
-        await this.loadCustomLookups();
-      } else {
-        this.notify(res?.message || 'Failed to save custom lookup', 'error');
-      }
+      await this.api.saveCustomLookup(phone, name);
+      this.customLookupsList = this.api.getLocalCustomLookups();
+      this.newLookupPhone = '';
+      this.newLookupName = '';
+      this.notify(`Recipient name for ${phone} successfully set to "${name}"!`, 'success');
     } catch (err: any) {
       this.notify('Error saving custom lookup: ' + (err.message || err), 'error');
     } finally {
       this.isSavingLookup = false;
+      this.cdr.detectChanges();
     }
   }
 
@@ -3832,8 +3842,9 @@ export class AdminComponent implements OnInit {
       `Are you sure you want to remove the custom name mapping for "${name}"?`,
       async () => {
         await this.api.deleteCustomLookup(idOrPhone);
+        this.customLookupsList = this.api.getLocalCustomLookups();
         this.notify(`Removed custom name mapping for ${name}`, 'info');
-        await this.loadCustomLookups();
+        this.cdr.detectChanges();
       },
       'Remove Mapping',
       true
