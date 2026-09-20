@@ -10,9 +10,9 @@ const { getDb, saveDb, generateTransactionId } = require('../dataStore');
 const MPESA_CONNECT_KEY = process.env.MPESA_CONNECT_KEY || 'mpesa_connect_live_key';
 
 const APP_NAMES = {
-  pakabet: 'PAKABET',
-  palpesa: 'PAKABET',
-  palpesabet: 'PAKABET',
+  pakabet: 'PALPESA',
+  palpesa: 'PALPESA',
+  palpesabet: 'PALPESA',
   vexbet: 'VEXBET',
   patatrader: 'PATATRADER',
   traderkit: 'PATATRADER'
