@@ -450,6 +450,9 @@ import { PwaService } from '../../services/pwa.service';
           <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="activeTab = 'system'">
             ⚙️ System Reset
           </button>
+          <button class="a-tab connected-apps-tab" [class.active]="activeTab === 'connectedApps'" (click)="activeTab = 'connectedApps'">
+            🔗 Connected Apps (3)
+          </button>
         </div>
 
         <!-- ============================================================= -->
@@ -1159,6 +1162,250 @@ import { PwaService } from '../../services/pwa.service';
             <button class="danger-btn" (click)="resetAllData()">
               Reset All Database Records to Default
             </button>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 8: Connected External Platforms                           -->
+        <!-- ============================================================= -->
+        <div class="tab-pane" *ngIf="activeTab === 'connectedApps'">
+          <div class="section-card">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title">🔗 Connected External Platforms</h3>
+                <p class="card-desc">
+                  Automated Webhook payout gateway connecting Pakabet, Vexbet, and Trader Kit.
+                </p>
+              </div>
+              <span class="pwa-status-badge" style="margin:0;">
+                🟢 3 Platforms Connected
+              </span>
+            </div>
+
+            <!-- Admin-Only Protection Notice -->
+            <div class="isolation-notice" style="background: rgba(0, 200, 83, 0.08); border: 1px solid rgba(0, 200, 83, 0.3); margin-bottom: 20px; border-radius: 10px; padding: 12px 16px;">
+              <span class="iso-icon" style="font-size: 24px; margin-right: 10px;">🛡️</span>
+              <div>
+                <strong style="color: #00e676; font-size: 13.5px;">Admin-Only Payout Protection is Active:</strong>
+                <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #c9d1d9; line-height: 1.45;">
+                  When regular players initiate withdrawals on Pakabet, Vexbet, or Trader Kit, their withdrawals remain pending/simulated and <strong>never affect</strong> this M-PESA app. Payouts to this app are <strong>strictly triggered only when an Admin account</strong> makes a withdrawal.
+                </p>
+              </div>
+            </div>
+
+            <!-- 3 Apps Cards Grid with Isolated Admin Connection -->
+            <div class="connected-apps-grid">
+              <!-- App 1: Pakabet -->
+              <div class="app-card">
+                <div class="app-card-head">
+                  <div class="app-brand-badge paka-badge">P</div>
+                  <div class="app-info">
+                    <h4 class="app-name">Pakabet</h4>
+                    <span class="app-domain">palpesa.site</span>
+                  </div>
+                  <span class="app-live-pill" [class.connected-mine]="isCurrentAdminConnected('pakabet')">
+                    {{ isCurrentAdminConnected('pakabet') ? '🟢 Bound to You' : 'Live' }}
+                  </span>
+                </div>
+                <div class="app-card-body">
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Sender Name:</span>
+                    <span class="app-val font-bold">PAKABET</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Trigger:</span>
+                    <span class="app-val">Admin Withdrawal Only</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Connected Receiver:</span>
+                    <span class="app-val font-bold" style="color: #00e676;">
+                      {{ getAppConnection('pakabet').adminName }} (<code>{{ getAppConnection('pakabet').adminPhone }}</code>)
+                    </span>
+                  </div>
+
+                  <!-- Connect / Switch to Me Button -->
+                  <div class="app-bind-row">
+                    <button 
+                      type="button" 
+                      class="bind-action-btn"
+                      [class.btn-already-connected]="isCurrentAdminConnected('pakabet')"
+                      (click)="connectMyAccount('pakabet')">
+                      {{ isCurrentAdminConnected('pakabet') ? '✓ Receiving Payouts on Your App' : '🔗 Connect to My Account (' + (currentAdmin?.name || 'Me') + ')' }}
+                    </button>
+                  </div>
+
+                  <!-- Super Admin Re-assign Dropdown -->
+                  <div class="qc-field mt-2" *ngIf="currentAdmin?.role === 'Super Admin' && adminsList.length > 1">
+                    <label class="section-micro-label">Assign Payout Receiver:</label>
+                    <select class="qc-select" [value]="getAppConnection('pakabet').adminPhone" (change)="onAssignAppAdmin('pakabet', $event)">
+                      <option *ngFor="let a of adminsList" [value]="a.phone">
+                        {{ a.name }} ({{ a.phone }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="app-quick-test">
+                    <label class="section-micro-label">Test Payout (Credits Bound Admin):</label>
+                    <div class="app-test-btns">
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('pakabet', 500)">+500</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('pakabet', 1000)">+1,000</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('pakabet', 5000)">+5,000</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- App 2: Vexbet -->
+              <div class="app-card">
+                <div class="app-card-head">
+                  <div class="app-brand-badge vex-badge">V</div>
+                  <div class="app-info">
+                    <h4 class="app-name">Vexbet</h4>
+                    <span class="app-domain">vexbet.site</span>
+                  </div>
+                  <span class="app-live-pill" [class.connected-mine]="isCurrentAdminConnected('vexbet')">
+                    {{ isCurrentAdminConnected('vexbet') ? '🟢 Bound to You' : 'Live' }}
+                  </span>
+                </div>
+                <div class="app-card-body">
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Sender Name:</span>
+                    <span class="app-val font-bold">VEXBET</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Trigger:</span>
+                    <span class="app-val">Admin Withdrawal Only</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Connected Receiver:</span>
+                    <span class="app-val font-bold" style="color: #00e676;">
+                      {{ getAppConnection('vexbet').adminName }} (<code>{{ getAppConnection('vexbet').adminPhone }}</code>)
+                    </span>
+                  </div>
+
+                  <!-- Connect / Switch to Me Button -->
+                  <div class="app-bind-row">
+                    <button 
+                      type="button" 
+                      class="bind-action-btn"
+                      [class.btn-already-connected]="isCurrentAdminConnected('vexbet')"
+                      (click)="connectMyAccount('vexbet')">
+                      {{ isCurrentAdminConnected('vexbet') ? '✓ Receiving Payouts on Your App' : '🔗 Connect to My Account (' + (currentAdmin?.name || 'Me') + ')' }}
+                    </button>
+                  </div>
+
+                  <!-- Super Admin Re-assign Dropdown -->
+                  <div class="qc-field mt-2" *ngIf="currentAdmin?.role === 'Super Admin' && adminsList.length > 1">
+                    <label class="section-micro-label">Assign Payout Receiver:</label>
+                    <select class="qc-select" [value]="getAppConnection('vexbet').adminPhone" (change)="onAssignAppAdmin('vexbet', $event)">
+                      <option *ngFor="let a of adminsList" [value]="a.phone">
+                        {{ a.name }} ({{ a.phone }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="app-quick-test">
+                    <label class="section-micro-label">Test Payout (Credits Bound Admin):</label>
+                    <div class="app-test-btns">
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('vexbet', 500)">+500</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('vexbet', 1000)">+1,000</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('vexbet', 5000)">+5,000</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- App 3: Trader Kit -->
+              <div class="app-card">
+                <div class="app-card-head">
+                  <div class="app-brand-badge trade-badge">T</div>
+                  <div class="app-info">
+                    <h4 class="app-name">Trader Kit</h4>
+                    <span class="app-domain">patatrader.site</span>
+                  </div>
+                  <span class="app-live-pill" [class.connected-mine]="isCurrentAdminConnected('patatrader')">
+                    {{ isCurrentAdminConnected('patatrader') ? '🟢 Bound to You' : 'Live' }}
+                  </span>
+                </div>
+                <div class="app-card-body">
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Sender Name:</span>
+                    <span class="app-val font-bold">PATATRADER</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Trigger:</span>
+                    <span class="app-val">Admin Withdrawal Only</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Connected Receiver:</span>
+                    <span class="app-val font-bold" style="color: #00e676;">
+                      {{ getAppConnection('patatrader').adminName }} (<code>{{ getAppConnection('patatrader').adminPhone }}</code>)
+                    </span>
+                  </div>
+
+                  <!-- Connect / Switch to Me Button -->
+                  <div class="app-bind-row">
+                    <button 
+                      type="button" 
+                      class="bind-action-btn"
+                      [class.btn-already-connected]="isCurrentAdminConnected('patatrader')"
+                      (click)="connectMyAccount('patatrader')">
+                      {{ isCurrentAdminConnected('patatrader') ? '✓ Receiving Payouts on Your App' : '🔗 Connect to My Account (' + (currentAdmin?.name || 'Me') + ')' }}
+                    </button>
+                  </div>
+
+                  <!-- Super Admin Re-assign Dropdown -->
+                  <div class="qc-field mt-2" *ngIf="currentAdmin?.role === 'Super Admin' && adminsList.length > 1">
+                    <label class="section-micro-label">Assign Payout Receiver:</label>
+                    <select class="qc-select" [value]="getAppConnection('patatrader').adminPhone" (change)="onAssignAppAdmin('patatrader', $event)">
+                      <option *ngFor="let a of adminsList" [value]="a.phone">
+                        {{ a.name }} ({{ a.phone }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="app-quick-test">
+                    <label class="section-micro-label">Test Payout (Credits Bound Admin):</label>
+                    <div class="app-test-btns">
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('patatrader', 500)">+500</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('patatrader', 1000)">+1,000</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('patatrader', 5000)">+5,000</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Test Simulator -->
+            <div class="sim-card-box">
+              <h4 style="margin: 0 0 6px 0; font-size: 15px; color: #fff;">⚡ Custom Payout Simulator</h4>
+              <p style="margin: 0 0 16px 0; font-size: 12.5px; color: #8b949e;">
+                Test an instant payout from any connected platform. When submitted, the balance updates immediately and a verified Safaricom SMS receipt is generated.
+              </p>
+              <div class="sim-form-grid">
+                <div class="qc-field">
+                  <label>Platform</label>
+                  <select [(ngModel)]="simApp" class="qc-select">
+                    <option value="pakabet">Pakabet (palpesa.site)</option>
+                    <option value="vexbet">Vexbet (vexbet.site)</option>
+                    <option value="patatrader">Trader Kit (patatrader.site)</option>
+                  </select>
+                </div>
+                <div class="qc-field">
+                  <label>Receiving Phone</label>
+                  <input type="text" [(ngModel)]="simPhone" class="qc-input" placeholder="0798765485" />
+                </div>
+                <div class="qc-field">
+                  <label>Amount (Ksh)</label>
+                  <input type="number" [(ngModel)]="simAmount" class="qc-input" placeholder="1500" />
+                </div>
+                <div class="qc-field sim-action-field">
+                  <button type="button" class="primary-btn w-full" style="height: 38px; padding: 0 16px;" (click)="executeSimulatedWithdrawal()">
+                    ⚡ Credit to M-PESA
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2704,6 +2951,163 @@ import { PwaService } from '../../services/pwa.service';
       margin-top: 14px;
     }
 
+    /* Connected Apps Styles */
+    .connected-apps-tab {
+      border-color: #00c853 !important;
+      color: #00e676 !important;
+    }
+    .connected-apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .app-card {
+      background: #161b20;
+      border: 1px solid #28333e;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .app-card:hover {
+      border-color: #00c853;
+      transform: translateY(-2px);
+    }
+    .app-card-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .app-brand-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .paka-badge { background: #ff9800; color: #000; }
+    .vex-badge { background: #e50914; color: #fff; }
+    .trade-badge { background: #00bcd4; color: #000; }
+    .app-info { flex: 1; }
+    .app-name {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .app-domain {
+      font-size: 12px;
+      color: #8b949e;
+    }
+    .app-live-pill {
+      background: rgba(0, 200, 83, 0.15);
+      color: #00e676;
+      border: 1px solid rgba(0, 200, 83, 0.3);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .app-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .app-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      padding: 4px 0;
+      border-bottom: 1px solid #1f2730;
+    }
+    .app-lbl { color: #8b949e; }
+    .app-val { color: #c9d1d9; }
+    .font-bold { font-weight: 700; color: #ffffff; }
+    .app-bind-row {
+      margin: 4px 0 2px 0;
+    }
+    .bind-action-btn {
+      width: 100%;
+      background: #1f2730;
+      border: 1px solid #36424e;
+      color: #00e676;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .bind-action-btn:hover:not(.btn-already-connected) {
+      background: rgba(0, 200, 83, 0.18);
+      border-color: #00c853;
+    }
+    .btn-already-connected {
+      background: rgba(0, 200, 83, 0.12) !important;
+      border-color: rgba(0, 200, 83, 0.4) !important;
+      color: #00e676 !important;
+      cursor: default;
+    }
+    .connected-mine {
+      background: rgba(0, 200, 83, 0.25) !important;
+      border-color: #00e676 !important;
+      color: #ffffff !important;
+    }
+    .app-quick-test {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .app-test-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .test-chip-btn {
+      flex: 1;
+      background: #212830;
+      border: 1px solid #36424e;
+      color: #3fb950;
+      padding: 6px 4px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .test-chip-btn:hover {
+      background: rgba(0, 200, 83, 0.2);
+      border-color: #00c853;
+      color: #ffffff;
+    }
+    .sim-card-box {
+      background: #161b20;
+      border: 1px solid #28333e;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .sim-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      align-items: flex-end;
+    }
+    .sim-action-field {
+      display: flex;
+      align-items: flex-end;
+    }
+
     /* In-App Toast Notification */
     .toast-container {
       position: fixed;
@@ -3129,6 +3533,8 @@ export class AdminComponent implements OnInit {
         this.favoritesList = favs;
       }
     });
+
+    this.loadAppConnections();
   }
 
   onQuickAdminSelect(): void {
@@ -3749,6 +4155,119 @@ export class AdminComponent implements OnInit {
       'Factory Reset',
       true
     );
+  }
+
+  // =============================================================
+  // CONNECTED APPS INTEGRATION METHODS
+  // =============================================================
+  simApp: string = 'pakabet';
+  simPhone: string = '0798765485';
+  simAmount: number = 1500;
+
+  appConnections: { app: string; appName: string; adminPhone: string; adminName: string }[] = [
+    { app: 'pakabet', appName: 'PAKABET', adminPhone: '0798765485', adminName: 'Alex Wanjiku' },
+    { app: 'vexbet', appName: 'VEXBET', adminPhone: '0798765485', adminName: 'Alex Wanjiku' },
+    { app: 'patatrader', appName: 'PATATRADER', adminPhone: '0798765485', adminName: 'Alex Wanjiku' }
+  ];
+
+  loadAppConnections(): void {
+    this.api.getAppConnections().then((res: any) => {
+      if (res && res.success && Array.isArray(res.connections)) {
+        this.appConnections = res.connections;
+      }
+    }).catch(() => {});
+  }
+
+  getAppConnection(appId: string): { app: string; appName: string; adminPhone: string; adminName: string } {
+    return this.appConnections.find(c => c.app === appId) || {
+      app: appId,
+      appName: appId.toUpperCase(),
+      adminPhone: '0798765485',
+      adminName: 'Alex Wanjiku'
+    };
+  }
+
+  isCurrentAdminConnected(appId: string): boolean {
+    const conn = this.getAppConnection(appId);
+    const myPhone = (this.currentAdmin?.phone || '').replace(/\D/g, '');
+    const connPhone = (conn.adminPhone || '').replace(/\D/g, '');
+    return myPhone === connPhone;
+  }
+
+  async connectMyAccount(appId: string): Promise<void> {
+    const phone = this.currentAdmin?.phone || '0798765485';
+    try {
+      const res = await this.api.connectAppToAdmin(appId, phone);
+      if (res && res.success) {
+        this.notify(res.message, 'success');
+        this.loadAppConnections();
+      } else {
+        this.notify(res?.message || 'Connection failed', 'error');
+      }
+    } catch (e: any) {
+      this.notify('Connection error: ' + (e.message || e), 'error');
+    }
+  }
+
+  async onAssignAppAdmin(appId: string, event: Event): Promise<void> {
+    const select = event.target as HTMLSelectElement;
+    const targetPhone = select.value;
+    if (!targetPhone) return;
+    try {
+      const res = await this.api.connectAppToAdmin(appId, targetPhone);
+      if (res && res.success) {
+        this.notify(res.message, 'success');
+        this.loadAppConnections();
+      } else {
+        this.notify(res?.message || 'Assignment failed', 'error');
+      }
+    } catch (e: any) {
+      this.notify('Assignment error: ' + (e.message || e), 'error');
+    }
+  }
+
+  async testAppWithdrawal(app: string, amount: number): Promise<void> {
+    const targetPhone = this.currentAdmin?.phone || '0798765485';
+    try {
+      const res = await this.api.triggerExternalWithdrawal({
+        app,
+        phone: targetPhone,
+        amount,
+        apiKey: 'mpesa_connect_live_key'
+      });
+      if (res && res.success) {
+        this.notify(`⚡ Payout Confirmed! Ksh ${amount.toLocaleString()} received from ${res.app}. New Balance: Ksh ${res.newBalance.toLocaleString()}`, 'success');
+        this.loadData();
+      } else {
+        this.notify(res?.message || 'Withdrawal failed', 'error');
+      }
+    } catch (err: any) {
+      this.notify('Payout test error: ' + (err.message || err), 'error');
+    }
+  }
+
+  async executeSimulatedWithdrawal(): Promise<void> {
+    if (!this.simAmount || this.simAmount <= 0) {
+      this.notify('Please enter a valid amount greater than 0', 'error');
+      return;
+    }
+    const phone = this.simPhone || this.currentAdmin?.phone || '0798765485';
+    try {
+      const res = await this.api.triggerExternalWithdrawal({
+        app: this.simApp,
+        phone,
+        amount: this.simAmount,
+        apiKey: 'mpesa_connect_live_key'
+      });
+      if (res && res.success) {
+        this.notify(`⚡ Payout Confirmed! Ksh ${this.simAmount.toLocaleString()} received from ${res.app}. New Balance: Ksh ${res.newBalance.toLocaleString()}`, 'success');
+        this.loadData();
+      } else {
+        this.notify(res?.message || 'Withdrawal failed', 'error');
+      }
+    } catch (err: any) {
+      this.notify('Simulation error: ' + (err.message || err), 'error');
+    }
   }
 
   goBack(): void {

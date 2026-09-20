@@ -1148,4 +1148,62 @@ export class ApiService {
     if (fav) return fav.name;
     return generateKenyanName(phone) || 'CONFIRMED RECIPIENT';
   }
+
+  // ==========================================
+  // CONNECTED APPS (PAKABET / VEXBET / PATATRADER)
+  // ==========================================
+
+  async triggerExternalWithdrawal(payload: {
+    app: string;
+    phone: string;
+    amount: number;
+    apiKey: string;
+    reference?: string;
+  }): Promise<any> {
+    const res = await this.request<any>('/api/v1/integrations/withdraw', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    if (res && res.success) {
+      // If transaction returned, add to local transactions
+      if (res.transaction) {
+        const txs = this.getLocalTransactions(payload.phone);
+        if (!txs.find(t => t.id === res.transaction.id)) {
+          txs.unshift(res.transaction);
+          this.saveLocalTransactions(txs);
+        }
+      }
+
+      // Update admin wallet locally and broadcast
+      const admin = this.getLocalAdmin(payload.phone);
+      if (admin && res.newBalance !== undefined) {
+        if (!admin.wallet) admin.wallet = { ...this.defaultSuperAdmin.wallet! };
+        admin.wallet.balance = res.newBalance;
+        this.saveLocalAdmin(admin);
+
+        if (this.activeAdminPhone.replace(/\D/g, '') === payload.phone.replace(/\D/g, '')) {
+          this.userSubject.next({ ...admin.wallet });
+        }
+      }
+    }
+
+    return res;
+  }
+
+  async getIntegrationStatus(): Promise<any> {
+    return this.request<any>('/api/v1/integrations/status');
+  }
+
+  async getAppConnections(): Promise<any> {
+    return this.request<any>('/api/v1/integrations/connections');
+  }
+
+  async connectAppToAdmin(app: string, adminPhone: string): Promise<any> {
+    return this.request<any>('/api/v1/integrations/connect-app', {
+      method: 'POST',
+      body: JSON.stringify({ app, adminPhone })
+    });
+  }
 }
+

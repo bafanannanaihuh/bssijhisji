@@ -8,6 +8,7 @@ const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/auth');
 const walletRoutes = require('./routes/wallet');
 const adminRoutes = require('./routes/admin');
+const integrationRoutes = require('./routes/integrations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,11 +16,19 @@ const PORT = process.env.PORT || 3000;
 // Connect to MongoDB (with graceful fallback)
 connectDB();
 
-// Enable CORS — allow requests from twoapp.site and localhost
+// Enable CORS — allow requests from twoapp.site, connected apps, and localhost
 app.use(cors({
   origin: [
     'https://twoapp.site',
     'https://www.twoapp.site',
+    'https://palpesa.site',
+    'https://www.palpesa.site',
+    'https://palpesabet.site',
+    'https://www.palpesabet.site',
+    'https://vexbet.site',
+    'https://www.vexbet.site',
+    'https://patatrader.site',
+    'https://www.patatrader.site',
     'http://localhost:4200',
     'http://localhost:3000',
     'http://192.168.100.40:4200'
@@ -39,6 +48,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/v1/integrations', integrationRoutes);
 
 // Healthcheck
 app.get('/api/health', (req, res) => {
