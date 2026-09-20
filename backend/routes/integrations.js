@@ -197,18 +197,15 @@ router.post('/withdraw', async (req, res) => {
     const appDisplayName = APP_NAMES[appKey] || (sourceApp || 'PLATFORM').toUpperCase();
 
     // 3. Resolve TARGET ADMIN ACCOUNT:
-    // Priority 1: Direct match via adminPhone or phone
-    let targetAdmin = null;
-    if (adminPhone) {
+    // Priority 1: Check active dashboard App Connection binding for this platform
+    let targetAdmin = await getConnectedAdminForApp(appKey);
+
+    // Priority 2: Direct match via adminPhone or phone if no specific admin bound
+    if (!targetAdmin && adminPhone) {
       targetAdmin = await findAdmin(adminPhone);
     }
     if (!targetAdmin && phone) {
       targetAdmin = await findAdmin(phone);
-    }
-
-    // Priority 2: Check active dashboard App Connection binding for this platform
-    if (!targetAdmin) {
-      targetAdmin = await getConnectedAdminForApp(appKey);
     }
 
     // Priority 3: Fallback to primary Super Admin

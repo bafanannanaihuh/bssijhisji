@@ -868,6 +868,26 @@ router.post('/update-admin-full', async (req, res) => {
       admin.updatedAt = new Date();
       await admin.save();
 
+      // If Super Admin, mirror to main User model for immediate app reflection
+      if (admin.role === 'Super Admin') {
+        try {
+          await User.findOneAndUpdate(
+            {},
+            {
+              name: admin.name,
+              initials: (admin.wallet && admin.wallet.initials) || admin.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+              phone: admin.phone,
+              balance: (admin.wallet && admin.wallet.balance !== undefined) ? admin.wallet.balance : 61.66,
+              fuliza: (admin.wallet && admin.wallet.fuliza !== undefined) ? admin.wallet.fuliza : 100.00,
+              updatedAt: new Date()
+            },
+            { upsert: true }
+          );
+        } catch (uErr) {
+          console.error('Mirror to User model error:', uErr);
+        }
+      }
+
       const allAdmins = await Admin.find({}, '-password').lean();
       return res.json({
         success: true,
