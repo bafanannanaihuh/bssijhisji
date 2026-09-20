@@ -17,7 +17,7 @@ const transactionSchema = new mongoose.Schema({
   status: { type: String, default: 'COMPLETED' },
   smsReceipt: { type: String, default: '' },
   note: { type: String, default: '' },
-  adminPhone: { type: String, default: '0798765485' }
+  adminPhone: { type: String, default: '0722220165' }
 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

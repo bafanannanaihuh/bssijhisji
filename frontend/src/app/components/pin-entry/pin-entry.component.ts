@@ -493,17 +493,17 @@ export class PinEntryComponent implements OnInit {
   isWrongPinDancing = false;
   isNavigating = false;
   showSwitcher = false;
-  activeAdminPhone = '0798765485';
+  activeAdminPhone = '0722220165';
   availableProfiles: any[] = [];
   private wrongDanceTimer: any = null;
 
   user: UserProfile = {
-    name: 'Alex Wanjiku',
-    initials: 'AW',
-    phone: '0798765485',
-    maskedPhone: '079******85',
+    name: 'Brian',
+    initials: 'BR',
+    phone: '0722220165',
+    maskedPhone: '072******65',
     greeting: 'Good morning,',
-    balance: 61.66,
+    balance: 176528.65,
     fuliza: 100.00,
     airtime: 0.00
   };

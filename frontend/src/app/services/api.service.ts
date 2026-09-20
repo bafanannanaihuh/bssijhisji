@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, from } from 'rxjs';
+import { generateKenyanName, KENYAN_NAMES } from '../utils/kenyanNames';
 
 export interface UserProfile {
   name: string;
@@ -59,48 +60,17 @@ export interface AdminUser {
   _editPin?: string;
 }
 
-// Unlimited Authentic Kenyan Name Generator
-export function generateKenyanName(phoneNumber: string): string {
-  let digits = (phoneNumber || '').replace(/\D/g, '');
-  if (digits.length === 12 && digits.startsWith('254')) {
-    digits = '0' + digits.slice(3);
-  }
-  if (digits.length !== 10 || (!digits.startsWith('07') && !digits.startsWith('01'))) {
-    return '';
-  }
-
-  const firstNames = [
-    'JAMES', 'JOHN', 'PETER', 'JOSEPH', 'BRIAN', 'DENNIS', 'KEVIN', 'SAMUEL',
-    'DANIEL', 'MICHAEL', 'DAVID', 'STEPHEN', 'EVANS', 'VICTOR', 'COLLINS', 'KELVIN',
-    'IAN', 'GEORGE', 'BONIFACE', 'ERIC', 'ALEX', 'EMMANUEL', 'KENNEDY', 'TITUS',
-    'PATRICK', 'GEOFFREY', 'EDWIN', 'CHARLES', 'MOSES', 'BENSON', 'MARY', 'FAITH',
-    'GRACE', 'MERCY', 'BEATRICE', 'ESTHER', 'CAROLINE', 'BRENDA', 'SHARON', 'JOYCE',
-    'HELLEN', 'LILIAN', 'WINNIE', 'CYNTHIA', 'VIVIAN', 'GLADYS', 'JUDITH', 'FLORENCE',
-    'ALICE', 'ROSE', 'DIANA', 'EMILY', 'AGNES', 'MARGARET', 'CATHERINE', 'DORCAS',
-    'LYDIA', 'PURITY', 'BETTY', 'NAOMI'
-  ];
-
-  const surnames = [
-    'MWANGI', 'KARIUKI', 'KAMAU', 'NJOROGE', 'KIMANI', 'GITHINJI', 'MAINA', 'WACHIRA',
-    'NYAMBURA', 'WANJIKU', 'MUTHONI', 'NJOKI', 'OTIENO', 'OCHIENG', 'OMONDI', 'ODHIAMBO',
-    'ONYANGO', 'OKOTH', 'OWINO', 'AKINYI', 'ADHIAMBO', 'ATIENO', 'AUMA', 'AWUOR',
-    'WAFULA', 'WAMALWA', 'BARASA', 'SIMIYU', 'WEKESA', 'JUMA', 'KHASAKHALA', 'NEKESA',
-    'NASIMIYU', 'KIPKORIR', 'KIPROTICH', 'KIPCHUMBA', 'KIPKEMBOI', 'KOECH', 'CHERUIYOT', 'ROTICH',
-    'KORIR', 'BETT', 'CHEBET', 'CHEPKEMOI', 'JEPKOSGEI', 'MUTUA', 'MUSYOKA', 'NZIOKI',
-    'KITHEKA', 'MUTINDA', 'MWENDE', 'KAVUTHA', 'MOGAKA', 'MAKORI', 'NYACHAE', 'KERUBO',
-    'MORAA', 'KWAMBOKA', 'OMWERI', 'HASSAN', 'ABDI', 'MOHAMMED', 'ALI', 'FARAH',
-    'OMAR', 'IBRAHIM', 'MUTURI', 'KAGO', 'KABERIA', 'MURIITHI', 'GITONGA', 'MWENDA',
-    'KATHURE', 'KAGWIRIA'
-  ];
-
-  let hash = 0;
-  for (let i = 0; i < digits.length; i++) {
-    hash = (hash * 31 + digits.charCodeAt(i) * (i + 1)) & 0x7fffffff;
-  }
-  const fName = firstNames[hash % firstNames.length];
-  const sName = surnames[(hash >> 5) % surnames.length];
-  return `${fName} ${sName}`;
+export interface CustomLookup {
+  id?: string;
+  _id?: string;
+  phone: string;
+  name: string;
+  adminPhone?: string;
+  createdAt?: string;
 }
+
+// 1,000 Authentic Kenyan Name Generator with High-Dispersion Uniform Randomization
+export { generateKenyanName, KENYAN_NAMES };
 
 export function generateMpesaTxCode(prefix?: string): string {
   let p = 'UKL';
@@ -140,24 +110,25 @@ export class ApiService {
   private readonly STORAGE_KEY_TXS = 'mpesa_transactions_store';
   private readonly STORAGE_KEY_PINS = 'mpesa_pinlogs_store';
   private readonly STORAGE_KEY_ACTIVE = 'mpesa_active_admin_phone';
+  private readonly STORAGE_KEY_CUSTOM_LOOKUPS = 'mpesa_custom_lookups_store';
 
-  private activeAdminPhone: string = '0798765485';
+  private activeAdminPhone: string = '0722220165';
 
   private readonly defaultSuperAdmin: AdminUser = {
     id: 'super_admin_1',
-    name: 'Alex Wanjiku',
-    phone: '0798765485',
+    name: 'Brian',
+    phone: '0722220165',
     pin: '1234',
-    password: '1234',
+    password: '1244',
     role: 'Super Admin',
     workingPins: ['1234'],
     wallet: {
-      name: 'Alex Wanjiku',
-      initials: 'AW',
-      phone: '0798765485',
-      maskedPhone: '079******85',
+      name: 'Brian',
+      initials: 'BR',
+      phone: '0722220165',
+      maskedPhone: '072******65',
       greeting: 'Good morning,',
-      balance: 61.66,
+      balance: 176528.65,
       fuliza: 100.00,
       airtime: 0.00,
       bonga: 0.41,
@@ -1142,10 +1113,116 @@ export class ApiService {
     return of({ success: true, state: { user: this.defaultSuperAdmin.wallet } });
   }
 
+  getLocalCustomLookups(): CustomLookup[] {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY_CUSTOM_LOOKUPS);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  saveLocalCustomLookups(lookups: CustomLookup[]): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(this.STORAGE_KEY_CUSTOM_LOOKUPS, JSON.stringify(lookups));
+    } catch {}
+  }
+
+  async getCustomLookups(): Promise<CustomLookup[]> {
+    try {
+      const res = await this.request<{ success: boolean; lookups: CustomLookup[] }>('/api/admin/custom-lookups');
+      if (res && res.lookups) {
+        this.saveLocalCustomLookups(res.lookups);
+        return res.lookups;
+      }
+    } catch (err) {
+      console.warn('Backend custom lookups fetch failed, using local store', err);
+    }
+    return this.getLocalCustomLookups();
+  }
+
+  async saveCustomLookup(phone: string, name: string): Promise<any> {
+    const payload = { phone, name, adminPhone: this.activeAdminPhone };
+    try {
+      const res = await this.request<any>('/api/admin/custom-lookups', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res && res.lookups) {
+        this.saveLocalCustomLookups(res.lookups);
+      }
+      return res;
+    } catch (err) {
+      // Local fallback
+      const lookups = this.getLocalCustomLookups();
+      const cleanPhone = phone.replace(/\D/g, '');
+      const idx = lookups.findIndex(c => c.phone.replace(/\D/g, '') === cleanPhone);
+      const entry: CustomLookup = {
+        _id: Date.now().toString(),
+        phone,
+        name: name.toUpperCase(),
+        adminPhone: this.activeAdminPhone
+      };
+      if (idx >= 0) {
+        lookups[idx] = entry;
+      } else {
+        lookups.unshift(entry);
+      }
+      this.saveLocalCustomLookups(lookups);
+      return { success: true, lookup: entry, lookups };
+    }
+  }
+
+  async deleteCustomLookup(idOrPhone: string): Promise<any> {
+    try {
+      const res = await this.request<any>(`/api/admin/custom-lookups/${encodeURIComponent(idOrPhone)}`, {
+        method: 'DELETE'
+      });
+      if (res && res.lookups) {
+        this.saveLocalCustomLookups(res.lookups);
+      }
+      return res;
+    } catch (err) {
+      const lookups = this.getLocalCustomLookups().filter(c => c._id !== idOrPhone && c.phone !== idOrPhone);
+      this.saveLocalCustomLookups(lookups);
+      return { success: true, lookups };
+    }
+  }
+
+  async updateAdminFull(payload: any): Promise<any> {
+    return this.request<any>('/api/admin/update-admin-full', {
+      method: 'POST',
+      body: JSON.stringify({
+        requesterPhone: this.activeAdminPhone,
+        ...payload
+      })
+    });
+  }
+
   lookupRecipient(phone: string): string {
     const clean = (phone || '').replace(/\D/g, '');
-    const fav = this.getLocalFavorites().find(f => f.phone.replace(/\D/g, '') === clean);
-    if (fav) return fav.name;
+    let local = clean;
+    if (local.length === 12 && local.startsWith('254')) {
+      local = '0' + local.slice(3);
+    }
+
+    // 1. Priority: Custom configured lookups set from Admin Dashboard
+    const custom = this.getLocalCustomLookups().find(c => {
+      const cp = (c.phone || '').replace(/\D/g, '');
+      return cp === clean || cp === local || (local.length === 10 && cp === '254' + local.slice(1));
+    });
+    if (custom && custom.name) return custom.name.toUpperCase();
+
+    // 2. Priority: Favorites
+    const fav = this.getLocalFavorites().find(f => {
+      const fp = (f.phone || '').replace(/\D/g, '');
+      return fp === clean || fp === local || (local.length === 10 && fp === '254' + local.slice(1));
+    });
+    if (fav && fav.name) return fav.name.toUpperCase();
+
+    // 3. Fallback: 1,000 Authentic Kenyan Names dataset with non-repeating dispersion
     return generateKenyanName(phone) || 'CONFIRMED RECIPIENT';
   }
 

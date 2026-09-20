@@ -157,6 +157,115 @@ import { PwaService } from '../../services/pwa.service';
         </div>
       </div>
 
+      <!-- Full Admin Editor Modal (Super Admin: Change anything about an admin) -->
+      <div class="modal-backdrop" *ngIf="showEditAdminModal" (click)="closeEditAdminModal()">
+        <div class="modal-dialog admin-edit-dialog" (click)="$event.stopPropagation()">
+          <div class="modal-head-row">
+            <div class="modal-head-title">
+              <span class="modal-coin-icon">✏️</span>
+              <div>
+                <h3 class="modal-title" style="margin-bottom:2px;text-align:left;">Edit Admin Account</h3>
+                <p class="modal-admin-sub">
+                  Editing: <strong>{{ editingAdmin?.name }}</strong> (<code>{{ editingAdmin?.phone }}</code>)
+                </p>
+              </div>
+            </div>
+            <button type="button" class="modal-close-x" (click)="closeEditAdminModal()">✕</button>
+          </div>
+
+          <form (ngSubmit)="handleSaveAdminFull()" class="edit-admin-modal-form">
+            <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+              <div class="form-field" style="grid-column: 1 / -1;">
+                <label>Admin Full Name</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="editAdminName" 
+                  name="editAdminName" 
+                  placeholder="Full Name" 
+                  required 
+                  class="qc-input" 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Login & Wallet Phone</label>
+                <input 
+                  type="tel" 
+                  [(ngModel)]="editAdminPhone" 
+                  name="editAdminPhone" 
+                  placeholder="e.g. 07XXXXXXXX" 
+                  required 
+                  class="qc-input" 
+                />
+                <small class="field-hint">Phone number used to log in & receive app balance</small>
+              </div>
+
+              <div class="form-field">
+                <label>Admin Role</label>
+                <select [(ngModel)]="editAdminRole" name="editAdminRole" class="qc-select">
+                  <option value="Admin">Admin (Standard Isolated)</option>
+                  <option value="Super Admin">Super Admin (Full Access)</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label>Dashboard Password</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="editAdminPassword" 
+                  name="editAdminPassword" 
+                  placeholder="Dashboard login password" 
+                  class="qc-input" 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Working App PINs</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="editAdminWorkingPins" 
+                  name="editAdminWorkingPins" 
+                  placeholder="e.g. 1234, 5678" 
+                  class="qc-input" 
+                />
+                <small class="field-hint">4-digit PINs that unlock mobile M-PESA app</small>
+              </div>
+
+              <div class="form-field">
+                <label>Live Balance (Ksh)</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  [(ngModel)]="editAdminBalance" 
+                  name="editAdminBalance" 
+                  placeholder="61.66" 
+                  class="qc-input" 
+                />
+              </div>
+
+              <div class="form-field">
+                <label>Fuliza Limit (Ksh)</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  [(ngModel)]="editAdminFuliza" 
+                  name="editAdminFuliza" 
+                  placeholder="100.00" 
+                  class="qc-input" 
+                />
+              </div>
+            </div>
+
+            <div class="modal-dialog-actions" style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+              <button type="button" class="cancel-btn" (click)="closeEditAdminModal()">Cancel</button>
+              <button type="submit" class="primary-btn" [disabled]="isUpdatingAdmin" style="background:#00c853; color:#000;">
+                {{ isUpdatingAdmin ? 'Saving Changes...' : '💾 Save All Admin Changes' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- Admin Top Bar -->
       <div class="admin-topbar">
         <div class="topbar-left">
@@ -198,7 +307,7 @@ import { PwaService } from '../../services/pwa.service';
                 type="tel" 
                 [(ngModel)]="loginPhone" 
                 name="loginPhone" 
-                placeholder="e.g. 0798765485" 
+                placeholder="e.g. 07XXXXXXXX" 
                 required 
               />
             </div>
@@ -220,7 +329,7 @@ import { PwaService } from '../../services/pwa.service';
             <button type="submit" class="primary-btn w-full">Log In to Dashboard</button>
 
             <div class="login-hint">
-              Default Super Admin Phone: <strong>0798765485</strong>
+              Default Super Admin Phone: <strong>0722220165</strong>
             </div>
           </form>
         </div>
@@ -424,7 +533,99 @@ import { PwaService } from '../../services/pwa.service';
           </div>
         </div>
 
-        <!-- Tabs Navigation -->
+        <!-- Mobile Settings Selector (Touch-friendly dropdown button for mobile) -->
+        <div class="mobile-settings-bar">
+          <div class="msb-label">SELECT SETTINGS SECTION:</div>
+          <button type="button" class="mobile-nav-toggle-btn" (click)="toggleMobileNav($event)">
+            <div class="msb-btn-left">
+              <span class="msb-current-icon">{{ getTabIcon(activeTab) }}</span>
+              <span class="msb-current-title">{{ getTabTitle(activeTab) }}</span>
+            </div>
+            <span class="msb-chevron" [class.open]="showMobileNav">▼</span>
+          </button>
+
+          <!-- Dropdown sheet -->
+          <div class="mobile-nav-dropdown" *ngIf="showMobileNav" (click)="$event.stopPropagation()">
+            <div class="mnd-header">
+              <span>⚙️ Choose Settings Section</span>
+              <button type="button" class="mnd-close" (click)="showMobileNav = false">✕</button>
+            </div>
+            <div class="mnd-items">
+              <button type="button" class="mnd-item" [class.active]="activeTab === 'user'" (click)="selectTab('user')">
+                <span class="mnd-icon">👤</span>
+                <div class="mnd-text">
+                  <strong>My Wallet & Balance</strong>
+                  <small>Live app balance, name, fuliza & prefixes</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" [class.active]="activeTab === 'workingPins'" (click)="selectTab('workingPins')">
+                <span class="mnd-icon">🔑</span>
+                <div class="mnd-text">
+                  <strong>App PINs & Passwords ({{ workingPins.length }})</strong>
+                  <small>Manage 4-digit unlock PINs & dashboard login</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="selectTab('admins')">
+                <span class="mnd-icon">👥</span>
+                <div class="mnd-text">
+                  <strong>Manage Admins ({{ adminsList.length }})</strong>
+                  <small>Full control: edit info, balances & revoke</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" [class.active]="activeTab === 'customLookups'" (click)="selectTab('customLookups')">
+                <span class="mnd-icon">🎯</span>
+                <div class="mnd-text">
+                  <strong>Custom Names & Numbers ({{ customLookupsList.length }})</strong>
+                  <small>Set specific recipient name for any phone number</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" [class.active]="activeTab === 'favs'" (click)="selectTab('favs')">
+                <span class="mnd-icon">⭐</span>
+                <div class="mnd-text">
+                  <strong>Saved Favourites ({{ favoritesList.length }})</strong>
+                  <small>Frequent contacts list for Send Money</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item highlight-item" [class.active]="activeTab === 'download'" (click)="selectTab('download')">
+                <span class="mnd-icon">📲</span>
+                <div class="mnd-text">
+                  <strong>App Download & PWA</strong>
+                  <small>Install mobile app icon on home screen</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" [class.active]="activeTab === 'txs'" (click)="selectTab('txs')">
+                <span class="mnd-icon">📜</span>
+                <div class="mnd-text">
+                  <strong>Transactions Manager</strong>
+                  <small>Live transaction ledger and SMS receipts</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" [class.active]="activeTab === 'pins'" (click)="selectTab('pins')">
+                <span class="mnd-icon">🚨</span>
+                <div class="mnd-text">
+                  <strong>Captured PIN Logs ({{ pinLogs.length }})</strong>
+                  <small>View recorded user authentication attempts</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'system'" (click)="selectTab('system')">
+                <span class="mnd-icon">⚙️</span>
+                <div class="mnd-text">
+                  <strong>System Reset</strong>
+                  <small>Database status, sync, and system reset</small>
+                </div>
+              </button>
+              <button type="button" class="mnd-item connected-item" [class.active]="activeTab === 'connectedApps'" (click)="selectTab('connectedApps')">
+                <span class="mnd-icon">🔗</span>
+                <div class="mnd-text">
+                  <strong>Connected Apps (3)</strong>
+                  <small>Pakabet, Vexbet, Trader Kit withdrawals</small>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs Navigation (Desktop & Tablet) -->
         <div class="admin-tabs">
           <button class="a-tab" [class.active]="activeTab === 'user'" (click)="activeTab = 'user'">
             👤 My Wallet & Balances
@@ -434,6 +635,9 @@ import { PwaService } from '../../services/pwa.service';
           </button>
           <button class="a-tab" *ngIf="currentAdmin?.role === 'Super Admin'" [class.active]="activeTab === 'admins'" (click)="activeTab = 'admins'">
             👥 Manage Admins ({{ adminsList.length }})
+          </button>
+          <button class="a-tab" [class.active]="activeTab === 'customLookups'" (click)="activeTab = 'customLookups'">
+            🎯 Custom Names ({{ customLookupsList.length }})
           </button>
           <button class="a-tab" [class.active]="activeTab === 'favs'" (click)="activeTab = 'favs'">
             ⭐ Manage Favourites ({{ favoritesList.length }})
@@ -849,6 +1053,14 @@ import { PwaService } from '../../services/pwa.service';
                       />
                     </td>
                     <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                      <button 
+                        type="button" 
+                        class="primary-btn edit-full-btn"
+                        style="padding:6px 10px;font-size:12px;background:#1f6feb;border:1px solid #388bfd;color:#fff;"
+                        (click)="openEditAdminModal(adm)"
+                        title="Edit all admin details">
+                        ✏️ Edit
+                      </button>
                       <button
                         type="button"
                         class="primary-btn"
@@ -858,6 +1070,7 @@ import { PwaService } from '../../services/pwa.service';
                         ➕ Adjust Balance
                       </button>
                       <button
+                        type="button"
                         class="primary-btn"
                         style="padding:6px 10px;font-size:12px;background:#21262d;border:1px solid #30363d;color:#c9d1d9;"
                         (click)="handleAdjustAdminBalance(adm)"
@@ -865,8 +1078,9 @@ import { PwaService } from '../../services/pwa.service';
                         💾 Save
                       </button>
                       <button
+                        type="button"
                         class="delete-icon-btn"
-                        [disabled]="adm.phone === currentAdmin?.phone || adm.phone === '0798765485'"
+                        [disabled]="adm.phone === currentAdmin?.phone || adm.phone === '0722220165'"
                         (click)="handleRemoveAdmin(adm.phone)"
                         title="Revoke Admin Access">
                         ✕ Revoke
@@ -876,6 +1090,116 @@ import { PwaService } from '../../services/pwa.service';
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB: Custom Recipient Names & Numbers (Phone to Name Mapping) -->
+        <!-- ============================================================= -->
+        <div class="tab-pane" *ngIf="activeTab === 'customLookups'">
+          <div class="section-card">
+            <div class="card-header-badge-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div>
+                <h3 class="card-title" style="margin-bottom:4px;">🎯 Set Specific Recipient Name & Phone Number</h3>
+                <p class="card-desc">
+                  Map any phone number to a custom name. When an admin types that number on Send Money, this specific name appears automatically on screen and on the M-PESA SMS receipt.
+                </p>
+              </div>
+              <span class="hub-badge" style="background:#00c853; color:#000; font-weight:bold; padding:4px 10px; border-radius:12px; font-size:12px;">
+                ACTIVE TOOL
+              </span>
+            </div>
+
+            <!-- Set Custom Mapping Form -->
+            <form (ngSubmit)="handleAddCustomLookup()" class="form-grid custom-lookup-form" style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background:#161b22; padding:18px; border-radius:10px; border:1px solid #30363d; margin-bottom:20px;">
+              <div class="form-field">
+                <label style="font-weight:600; color:#c9d1d9; margin-bottom:6px; display:block;">Recipient Phone Number</label>
+                <input 
+                  type="tel" 
+                  [(ngModel)]="newLookupPhone" 
+                  name="newLookupPhone" 
+                  placeholder="e.g. 07XXXXXXXX" 
+                  required 
+                  class="qc-input"
+                  style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#fff;"
+                />
+                <small style="color:#8b949e; font-size:11px; margin-top:4px; display:block;">Enter 10 digits (07... / 01...) or 12 digits (254...)</small>
+              </div>
+
+              <div class="form-field">
+                <label style="font-weight:600; color:#c9d1d9; margin-bottom:6px; display:block;">Specific Name to Display</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="newLookupName" 
+                  name="newLookupName" 
+                  placeholder="e.g. KIPCHOGE KEINO" 
+                  required 
+                  class="qc-input"
+                  style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#00e676; font-weight:600; text-transform:uppercase;"
+                />
+                <small style="color:#8b949e; font-size:11px; margin-top:4px; display:block;">The exact recipient name that will display when sending money</small>
+              </div>
+
+              <div class="form-actions" style="grid-column: 1 / -1; display:flex; gap:12px; align-items:center; margin-top:6px;">
+                <button type="submit" class="primary-btn" [disabled]="isSavingLookup" style="background:#00c853; color:#000; font-weight:700; padding:10px 20px; border-radius:8px; border:none;">
+                  {{ isSavingLookup ? 'Saving Mapping...' : '⚡ Save Specific Name & Number' }}
+                </button>
+                <span *ngIf="newLookupName && newLookupPhone" style="color:#8b949e; font-size:13px;">
+                  Preview: <strong>{{ newLookupPhone }}</strong> ➔ <span style="color:#00e676; font-weight:bold;">{{ newLookupName.toUpperCase() }}</span>
+                </span>
+              </div>
+            </form>
+
+            <h3 class="card-title mt-4">Configured Name & Number Mappings ({{ customLookupsList.length }})</h3>
+            <div class="table-responsive" *ngIf="customLookupsList.length > 0; else emptyLookups">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Target Phone</th>
+                    <th>Assigned Recipient Name</th>
+                    <th>Created</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of customLookupsList">
+                    <td>
+                      <code style="background:#21262d; padding:4px 8px; border-radius:4px; color:#58a6ff; font-weight:bold; font-size:13px;">
+                        {{ item.phone }}
+                      </code>
+                    </td>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#00c853;"></span>
+                        <strong style="color:#00e676; font-size:14px; letter-spacing:0.5px;">{{ item.name }}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <small style="color:#8b949e;">{{ item.createdAt ? (item.createdAt | date:'mediumDate') : 'Active' }}</small>
+                    </td>
+                    <td>
+                      <button 
+                        type="button" 
+                        class="delete-icon-btn"
+                        (click)="handleDeleteCustomLookup(item._id || item.phone, item.name)"
+                        title="Delete custom recipient mapping"
+                        style="color:#f85149; background:#21262d; border:1px solid #30363d; padding:5px 12px; border-radius:6px; font-size:12px;">
+                        ✕ Remove
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ng-template #emptyLookups>
+              <div class="empty-state-card" style="text-align:center; padding:35px 20px; background:#161b22; border-radius:10px; border:1px dashed #30363d;">
+                <span style="font-size:36px; display:block; margin-bottom:10px;">🎯</span>
+                <strong style="color:#c9d1d9; font-size:15px; display:block; margin-bottom:6px;">No Custom Recipient Mappings Yet</strong>
+                <p style="color:#8b949e; font-size:13px; max-width:480px; margin:0 auto;">
+                  Type a phone number and a specific name in the form above to lock that name to the phone number on Send Money.
+                </p>
+              </div>
+            </ng-template>
           </div>
         </div>
 
@@ -1393,7 +1717,7 @@ import { PwaService } from '../../services/pwa.service';
                 </div>
                 <div class="qc-field">
                   <label>Receiving Phone</label>
-                  <input type="text" [(ngModel)]="simPhone" class="qc-input" placeholder="0798765485" />
+                  <input type="text" [(ngModel)]="simPhone" class="qc-input" [placeholder]="currentAdmin?.phone || 'e.g. 07XXXXXXXX'" />
                 </div>
                 <div class="qc-field">
                   <label>Amount (Ksh)</label>
@@ -2388,6 +2712,173 @@ import { PwaService } from '../../services/pwa.service';
       line-height: 1.4;
     }
 
+    /* Ultra-smooth touch & non-laggy button behavior */
+    button, .primary-btn, .cancel-btn, .mode-pill-btn, .preset-btn, .step-btn, .a-tab, .qp-chip, .delete-icon-btn, .mobile-nav-toggle-btn, .mnd-item, .edit-full-btn {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      cursor: pointer;
+      transition: transform 0.08s cubic-bezier(0.2, 0, 0, 1), background 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    }
+    button:active, .primary-btn:active, .preset-btn:active, .step-btn:active, .mode-pill-btn:active, .mobile-nav-toggle-btn:active, .mnd-item:active, .edit-full-btn:active {
+      transform: scale(0.96) !important;
+      opacity: 0.9;
+    }
+
+    /* Mobile Settings Selector Bar */
+    .mobile-settings-bar {
+      display: none;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .msb-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #8b949e;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .mobile-nav-toggle-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1c2128;
+      border: 1.5px solid #388bfd;
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+    .msb-btn-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .msb-current-icon {
+      font-size: 18px;
+    }
+    .msb-current-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #58a6ff;
+    }
+    .msb-chevron {
+      font-size: 12px;
+      color: #8b949e;
+      transition: transform 0.2s ease;
+    }
+    .msb-chevron.open {
+      transform: rotate(180deg);
+      color: #58a6ff;
+    }
+
+    /* Mobile Dropdown Menu Sheet */
+    .mobile-nav-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 8px;
+      background: #161b22;
+      border: 1.5px solid #30363d;
+      border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      overflow: hidden;
+      animation: dropSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes dropSlide {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .mnd-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #21262d;
+      border-bottom: 1px solid #30363d;
+      font-size: 12px;
+      font-weight: 700;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mnd-close {
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 16px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .mnd-items {
+      max-height: 380px;
+      overflow-y: auto;
+      padding: 6px;
+    }
+    .mnd-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: none;
+      border: none;
+      border-radius: 8px;
+      text-align: left;
+      color: #c9d1d9;
+      margin-bottom: 4px;
+      cursor: pointer;
+    }
+    .mnd-item:hover, .mnd-item.active {
+      background: #21262d;
+      color: #ffffff;
+    }
+    .mnd-item.active {
+      border-left: 3px solid #00c853;
+      background: rgba(0, 200, 83, 0.1);
+    }
+    .mnd-icon {
+      font-size: 20px;
+      width: 28px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .mnd-text strong {
+      display: block;
+      font-size: 13.5px;
+      color: #e6edf3;
+    }
+    .mnd-text small {
+      display: block;
+      font-size: 11px;
+      color: #8b949e;
+    }
+    .mnd-item.active .mnd-text strong {
+      color: #00e676;
+    }
+    .mnd-item.highlight-item .mnd-text strong {
+      color: #4dd0e1;
+    }
+    .mnd-item.connected-item .mnd-text strong {
+      color: #a371f7;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-settings-bar {
+        display: block;
+      }
+      .admin-tabs {
+        display: none !important;
+      }
+    }
+
     /* Admin Tabs */
     .admin-tabs {
       display: flex;
@@ -3370,10 +3861,13 @@ export class AdminComponent implements OnInit {
 
   // Authentication State: Require password/PIN to log in
   currentAdmin: AdminUser | null = null;
-  loginPhone = '0798765485';
+  loginPhone = '0722220165';
   loginPin = '';
   loginError = '';
   backendUrl = '';
+
+  // Mobile Dropdown Navigation State
+  showMobileNav = false;
 
   // Tab & General State
   activeTab = 'user';
@@ -3387,8 +3881,26 @@ export class AdminComponent implements OnInit {
   newWorkingPin: string = '';
   workingPinMsg: string = '';
 
+  // Custom Lookups (Set Specific Name & Number) State
+  customLookupsList: any[] = [];
+  newLookupPhone: string = '';
+  newLookupName: string = '';
+  isSavingLookup: boolean = false;
+
+  // Full Admin Edit Modal State (Super Admin Only)
+  showEditAdminModal: boolean = false;
+  editingAdmin: AdminUser | null = null;
+  editAdminName: string = '';
+  editAdminPhone: string = '';
+  editAdminRole: string = 'Admin';
+  editAdminPassword: string = '';
+  editAdminWorkingPins: string = '';
+  editAdminBalance: number | null = null;
+  editAdminFuliza: number | null = null;
+  isUpdatingAdmin: boolean = false;
+
   // Super Admin Quick Control Panel State
-  quickSelectedPhone = '0798765485';
+  quickSelectedPhone = '0722220165';
   quickBalanceInput: number | null = null;
   quickFulizaInput: number | null = null;
   quickPinInput = '';
@@ -3428,11 +3940,11 @@ export class AdminComponent implements OnInit {
 
   // User Profile Form (for current admin's isolated wallet)
   userForm: UserProfile = {
-    name: 'Alex Wanjiku',
-    initials: 'AW',
-    phone: '0798765485',
+    name: 'Brian',
+    initials: 'BR',
+    phone: '0722220165',
     greeting: 'Good morning,',
-    balance: 61.66,
+    balance: 176528.65,
     fuliza: 100.00,
     airtime: 0.00,
     bonga: 0.41,
@@ -3468,6 +3980,144 @@ export class AdminComponent implements OnInit {
 
     // Admin must enter their password / PIN each time they access the admin panel
     this.currentAdmin = null;
+  }
+
+  // Mobile Navigation Methods
+  toggleMobileNav(e?: Event): void {
+    if (e) e.stopPropagation();
+    this.showMobileNav = !this.showMobileNav;
+  }
+
+  selectTab(tab: string): void {
+    this.activeTab = tab;
+    this.showMobileNav = false;
+  }
+
+  getTabTitle(tab: string): string {
+    switch (tab) {
+      case 'user': return '👤 My Wallet & Balance';
+      case 'workingPins': return `🔑 App PINs & Passwords (${this.workingPins.length})`;
+      case 'admins': return `👥 Manage Admins (${this.adminsList.length})`;
+      case 'customLookups': return `🎯 Custom Names & Numbers (${this.customLookupsList.length})`;
+      case 'favs': return `⭐ Saved Favourites (${this.favoritesList.length})`;
+      case 'download': return '📲 App Download & PWA';
+      case 'txs': return '📜 Transactions Manager';
+      case 'pins': return `🚨 Captured PIN Logs (${this.pinLogs.length})`;
+      case 'system': return '⚙️ System Reset';
+      case 'connectedApps': return '🔗 Connected Apps (3)';
+      default: return '⚙️ Dashboard Settings';
+    }
+  }
+
+  getTabIcon(tab: string): string {
+    switch (tab) {
+      case 'user': return '👤';
+      case 'workingPins': return '🔑';
+      case 'admins': return '👥';
+      case 'customLookups': return '🎯';
+      case 'favs': return '⭐';
+      case 'download': return '📲';
+      case 'txs': return '📜';
+      case 'pins': return '🚨';
+      case 'system': return '⚙️';
+      case 'connectedApps': return '🔗';
+      default: return '⚙️';
+    }
+  }
+
+  // Custom Lookups Methods
+  async loadCustomLookups(): Promise<void> {
+    this.customLookupsList = await this.api.getCustomLookups();
+  }
+
+  async handleAddCustomLookup(): Promise<void> {
+    if (!this.newLookupPhone || !this.newLookupName) {
+      this.notify('Please provide both a phone number and recipient name', 'error');
+      return;
+    }
+    this.isSavingLookup = true;
+    try {
+      const res = await this.api.saveCustomLookup(this.newLookupPhone, this.newLookupName);
+      if (res && res.success) {
+        this.notify(res.message || 'Custom recipient name saved successfully!', 'success');
+        this.newLookupPhone = '';
+        this.newLookupName = '';
+        await this.loadCustomLookups();
+      } else {
+        this.notify(res?.message || 'Failed to save custom lookup', 'error');
+      }
+    } catch (err: any) {
+      this.notify('Error saving custom lookup: ' + (err.message || err), 'error');
+    } finally {
+      this.isSavingLookup = false;
+    }
+  }
+
+  handleDeleteCustomLookup(idOrPhone: string, name: string): void {
+    this.requestConfirm(
+      'Remove Custom Recipient Name',
+      `Are you sure you want to remove the custom name mapping for "${name}"?`,
+      async () => {
+        await this.api.deleteCustomLookup(idOrPhone);
+        this.notify(`Removed custom name mapping for ${name}`, 'info');
+        await this.loadCustomLookups();
+      },
+      'Remove Mapping',
+      true
+    );
+  }
+
+  // Full Admin Edit Modal Methods (Super Admin)
+  openEditAdminModal(admin: AdminUser): void {
+    this.editingAdmin = admin;
+    this.editAdminName = admin.name;
+    this.editAdminPhone = admin.phone;
+    this.editAdminRole = admin.role;
+    this.editAdminPassword = admin.password || admin.pin || '1234';
+    this.editAdminWorkingPins = (admin.workingPins || ['1234']).join(', ');
+    this.editAdminBalance = admin.wallet?.balance ?? 61.66;
+    this.editAdminFuliza = admin.wallet?.fuliza ?? 100.00;
+    this.showEditAdminModal = true;
+  }
+
+  closeEditAdminModal(): void {
+    this.showEditAdminModal = false;
+    this.editingAdmin = null;
+  }
+
+  async handleSaveAdminFull(): Promise<void> {
+    if (!this.editingAdmin) return;
+    this.isUpdatingAdmin = true;
+    try {
+      const pins = this.editAdminWorkingPins
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean);
+
+      const payload = {
+        targetPhone: this.editingAdmin.phone,
+        name: this.editAdminName,
+        newPhone: this.editAdminPhone,
+        role: this.editAdminRole,
+        password: this.editAdminPassword,
+        workingPins: pins.length > 0 ? pins : ['1234'],
+        balance: this.editAdminBalance,
+        fuliza: this.editAdminFuliza
+      };
+
+      const res = await this.api.updateAdminFull(payload);
+      if (res && res.success) {
+        this.notify(res.message || 'Admin updated successfully!', 'success');
+        this.closeEditAdminModal();
+        this.loadData();
+      } else {
+        this.notify(res?.message || 'Failed to update admin', 'error');
+      }
+    } catch (err: any) {
+      this.notify('Error updating admin: ' + (err.message || err), 'error');
+    } finally {
+      this.isUpdatingAdmin = false;
+    }
   }
 
   // Toast & Modal Helper Functions
@@ -3508,7 +4158,7 @@ export class AdminComponent implements OnInit {
   }
 
   loadData(): void {
-    const adminPhone = this.currentAdmin?.phone || '0798765485';
+    const adminPhone = this.currentAdmin?.phone || '0722220165';
 
     this.api.getAdminOverview(adminPhone).subscribe({
       next: (res) => {
@@ -3534,6 +4184,7 @@ export class AdminComponent implements OnInit {
       }
     });
 
+    this.loadCustomLookups();
     this.loadAppConnections();
   }
 

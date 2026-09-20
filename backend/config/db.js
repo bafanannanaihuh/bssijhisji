@@ -47,18 +47,18 @@ async function seedInitialData() {
   try {
     const adminCount = await Admin.countDocuments();
     if (adminCount === 0) {
-      console.log('🌱 Seeding initial Super Admin (Alex Wanjiku, 0798765485, PIN 1234)...');
+      console.log('🌱 Seeding initial Super Admin (Alex Wanjiku, 0722220165, PIN 1234)...');
       await Admin.create({
         name: 'Alex Wanjiku',
-        phone: '0798765485',
+        phone: '0722220165',
         password: '1234',
         role: 'Super Admin',
         workingPins: ['1234'],
         wallet: {
           name: 'Alex Wanjiku',
           initials: 'AW',
-          phone: '0798765485',
-          maskedPhone: '079******85',
+          phone: '0722220165',
+          maskedPhone: '072******65',
           greeting: 'Good morning,',
           balance: 61.66,
           fuliza: 100.00,
@@ -74,7 +74,7 @@ async function seedInitialData() {
       await User.create({
         name: 'Alex Wanjiku',
         initials: 'AW',
-        phone: '0798765485',
+        phone: '0722220165',
         greeting: 'Good morning,',
         balance: 61.66,
         fuliza: 100.00,
@@ -91,8 +91,8 @@ async function seedInitialData() {
         id: 'TI93AB8190',
         type: 'RECEIVE',
         recipient: 'Alex Wanjiku',
-        phone: '254798765485',
-        displayPhone: '0798765485',
+        phone: '254722220165',
+        displayPhone: '0722220165',
         amount: 50.00,
         cost: 0.00,
         paymentMethod: 'M-PESA',

@@ -1,10 +1,10 @@
 {
   "user": {
-    "name": "Alex Wanjiku",
-    "initials": "AW",
-    "phone": "0798765485",
+    "name": "Brian",
+    "initials": "BR",
+    "phone": "0722220165",
     "greeting": "Good morning,",
-    "balance": 20000,
+    "balance": 176528.65,
     "fuliza": 100,
     "airtime": 0,
     "notificationsCount": 1
@@ -18,7 +18,7 @@
       "device": "Mobile Device",
       "screen": "App Unlock",
       "valid": false,
-      "adminPhone": "0798765485",
+      "adminPhone": "0722220165",
       "timestamp": "2026-09-06T21:21:51.628Z"
     },
     {
@@ -35,6 +35,26 @@
   ],
   "currentPin": "1234",
   "transactions": [
+    {
+      "id": "QKDG4PDY4",
+      "type": "RECEIVE",
+      "recipient": "PAKABET",
+      "phone": "0722220165",
+      "displayPhone": "PAKABET",
+      "amount": 1500,
+      "cost": 0,
+      "paymentMethod": "M-PESA",
+      "fulizaUsed": 0,
+      "balanceAfter": 90001500,
+      "fulizaAfter": 100,
+      "date": "2026-09-20T09:23:15.883Z",
+      "displayDate": "Just now",
+      "status": "COMPLETED",
+      "smsReceipt": "QKDG4PDY4 Confirmed. You have received Ksh1,500.00 from PAKABET on 20/9/26 at 12:23 PM. New M-PESA balance is Ksh90,001,500.00. Transaction cost, Ksh0.00.",
+      "note": "Ref: TEST-PAKABET-VERIFY",
+      "adminPhone": "0722220165",
+      "sourceApp": "pakabet"
+    },
     {
       "id": "UGD26VHG34",
       "type": "SEND",
@@ -76,7 +96,7 @@
       "type": "RECEIVE",
       "sender": "Safaricom Promotion",
       "recipient": "Alex Wanjiku",
-      "phone": "254798765485",
+      "phone": "254722220165",
       "amount": 50,
       "cost": 0,
       "date": "2026-09-05T09:15:00Z",
@@ -104,22 +124,22 @@
   "admins": [
     {
       "id": "1",
-      "name": "Alex Wanjiku",
-      "phone": "0798765485",
+      "name": "Brian",
+      "phone": "0722220165",
       "pin": "1234",
       "role": "Super Admin",
       "createdAt": "2026-09-06T08:00:00.000Z",
       "workingPins": [
         "1234"
       ],
-      "password": "1234",
+      "password": "1244",
       "wallet": {
-        "name": "Alex Wanjiku",
-        "initials": "AW",
-        "phone": "0798765485",
-        "maskedPhone": "079******85",
+        "name": "Brian",
+        "initials": "BR",
+        "phone": "0722220165",
+        "maskedPhone": "072******65",
         "greeting": "Good morning,",
-        "balance": 90000000,
+        "balance": 176528.65,
         "fuliza": 100,
         "airtime": 0,
         "notificationsCount": 1
@@ -148,5 +168,6 @@
         "notificationsCount": 1
       }
     }
-  ]
+  ],
+  "customLookups": []
 }

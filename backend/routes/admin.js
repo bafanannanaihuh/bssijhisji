@@ -4,6 +4,7 @@ const Admin = require('../models/Admin');
 const User = require('../models/User');
 const PinLog = require('../models/PinLog');
 const Transaction = require('../models/Transaction');
+const CustomLookup = require('../models/CustomLookup');
 const { getMongoStatus } = require('../config/db');
 const { getDb, saveDb } = require('../dataStore');
 
@@ -18,18 +19,18 @@ async function findAdmin(phone) {
       if (!admin && cleanPhone.length >= 9) {
         admin = await Admin.findOne({ phone: { $regex: cleanPhone.slice(-9) + '$' } });
       }
-      if (!admin && (cleanPhone === '0798765485' || cleanPhone === '254798765485')) {
+      if (!admin && (cleanPhone === '0722220165' || cleanPhone === '254722220165')) {
         admin = await Admin.create({
-          name: 'Alex Wanjiku',
-          phone: '0798765485',
+          name: 'Brian',
+          phone: '0722220165',
           password: '1234',
           role: 'Super Admin',
           workingPins: ['1234'],
           wallet: {
-            name: 'Alex Wanjiku',
-            initials: 'AW',
-            phone: '0798765485',
-            maskedPhone: '079******85',
+            name: 'Brian',
+            initials: 'BR',
+            phone: '0722220165',
+            maskedPhone: '072******65',
             greeting: 'Good morning,',
             balance: 61.66,
             fuliza: 100.00,
@@ -49,7 +50,7 @@ async function findAdmin(phone) {
   let admin = db.admins.find(a => 
     (a.phone.replace(/[^0-9]/g, '') === cleanPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-9)))
   );
-  if (!admin && (cleanPhone === '0798765485' || cleanPhone === '254798765485')) {
+  if (!admin && (cleanPhone === '0722220165' || cleanPhone === '254722220165')) {
     admin = db.admins[0];
   }
   return admin;
@@ -197,7 +198,7 @@ router.post('/change-password', async (req, res) => {
 // 2. ISOLATED ADMIN OVERVIEW
 // ==========================================
 router.get('/overview', async (req, res) => {
-  const adminPhone = req.query.adminPhone || '0798765485';
+  const adminPhone = req.query.adminPhone || '0722220165';
   const cleanPhone = adminPhone.replace(/[^0-9]/g, '');
 
   if (getMongoStatus()) {
@@ -289,7 +290,7 @@ router.get('/overview', async (req, res) => {
 // Every admin can adjust their balance without affecting other admins!
 router.post('/update-user', async (req, res) => {
   const { adminPhone, name, initials, phone, greeting, balance, fuliza, airtime, bonga, txPrefix, workingPin, pin } = req.body;
-  const cleanPhone = (adminPhone || phone || '0798765485').replace(/[^0-9]/g, '');
+  const cleanPhone = (adminPhone || phone || '0722220165').replace(/[^0-9]/g, '');
   const targetPin = (workingPin || pin || '').toString().trim();
 
   let updatedWallet = null;
@@ -650,7 +651,7 @@ router.delete('/revoke-admin/:phone', async (req, res) => {
   }
 
   // Prevent revoking oneself or primary super admin
-  if (targetPhone === '0798765485' || targetPhone === requesterPhone) {
+  if (targetPhone === '0722220165' || targetPhone === requesterPhone) {
     return res.status(400).json({ 
       success: false, 
       message: 'Cannot revoke the primary Super Admin account' 
@@ -768,6 +769,298 @@ router.delete('/transactions/:id', async (req, res) => {
     saveDb(db);
   }
   return res.json({ success: true, message: 'Transaction deleted' });
+});
+
+// ==========================================
+// FULL ADMIN UPDATE (SUPER ADMIN ONLY)
+// ==========================================
+// Allows Super Admin to change anything about any admin (Name, Phone, Role, Password, PIN, Balance, Fuliza)
+router.post('/update-admin-full', async (req, res) => {
+  const { requesterPhone, targetPhone, name, newPhone, role, password, workingPins, balance, fuliza } = req.body;
+  const cleanReqPhone = (requesterPhone || '').replace(/[^0-9]/g, '');
+  const cleanTargetPhone = (targetPhone || '').replace(/[^0-9]/g, '');
+
+  if (!cleanReqPhone || !cleanTargetPhone) {
+    return res.status(400).json({ success: false, message: 'Requester and target phone numbers are required' });
+  }
+
+  const requester = await findAdmin(cleanReqPhone);
+  if (!requester || requester.role !== 'Super Admin') {
+    return res.status(403).json({ success: false, message: 'Access Denied: Only Super Admin can edit full admin details' });
+  }
+
+  const cleanNewPhone = newPhone ? newPhone.replace(/[^0-9]/g, '') : null;
+
+  if (getMongoStatus()) {
+    try {
+      const admin = await Admin.findOne({ 
+        $or: [{ phone: cleanTargetPhone }, { phone: { $regex: cleanTargetPhone.slice(-9) + '$' } }] 
+      });
+
+      if (!admin) {
+        return res.status(404).json({ success: false, message: 'Target admin not found in database' });
+      }
+
+      // Check if changing phone to a number that already belongs to another admin
+      if (cleanNewPhone && cleanNewPhone !== admin.phone) {
+        const existingWithNewPhone = await Admin.findOne({ phone: cleanNewPhone });
+        if (existingWithNewPhone && existingWithNewPhone._id.toString() !== admin._id.toString()) {
+          return res.status(400).json({ success: false, message: `Phone ${cleanNewPhone} is already assigned to another admin` });
+        }
+      }
+
+      if (name) {
+        admin.name = name.trim();
+        if (!admin.wallet) admin.wallet = {};
+        admin.wallet.name = name.trim();
+        admin.wallet.initials = name.trim().split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      }
+
+      if (role && (role === 'Admin' || role === 'Super Admin')) {
+        // Prevent demoting the primary super admin 0722220165 if no other super admin exists
+        if (admin.phone === '0722220165' && role !== 'Super Admin') {
+          return res.status(400).json({ success: false, message: 'Cannot demote the primary Super Admin account' });
+        }
+        admin.role = role;
+      }
+
+      if (password && password.toString().trim().length > 0) {
+        admin.password = password.toString().trim();
+      }
+
+      if (workingPins !== undefined) {
+        if (Array.isArray(workingPins)) {
+          admin.workingPins = workingPins.filter(p => p && p.toString().trim().length > 0).map(p => p.toString().trim());
+        } else if (typeof workingPins === 'string' && workingPins.trim().length > 0) {
+          admin.workingPins = workingPins.split(',').map(p => p.trim()).filter(p => p.length > 0);
+        }
+      }
+
+      if (!admin.wallet) admin.wallet = {};
+
+      if (balance !== undefined && balance !== null && balance !== '') {
+        const numBal = parseFloat(balance);
+        if (!isNaN(numBal)) {
+          admin.wallet.balance = parseFloat(numBal.toFixed(2));
+        }
+      }
+
+      if (fuliza !== undefined && fuliza !== null && fuliza !== '') {
+        const numFul = parseFloat(fuliza);
+        if (!isNaN(numFul)) {
+          admin.wallet.fuliza = parseFloat(numFul.toFixed(2));
+        }
+      }
+
+      const oldPhone = admin.phone;
+      if (cleanNewPhone && cleanNewPhone !== oldPhone) {
+        admin.phone = cleanNewPhone;
+        admin.wallet.phone = cleanNewPhone;
+        admin.wallet.maskedPhone = cleanNewPhone.length >= 5 
+          ? cleanNewPhone.slice(0, 3) + '******' + cleanNewPhone.slice(-2) 
+          : cleanNewPhone;
+        
+        // Cascade to transactions
+        await Transaction.updateMany({ adminPhone: oldPhone }, { $set: { adminPhone: cleanNewPhone } });
+        await PinLog.updateMany({ adminPhone: oldPhone }, { $set: { adminPhone: cleanNewPhone } });
+      }
+
+      admin.updatedAt = new Date();
+      await admin.save();
+
+      const allAdmins = await Admin.find({}, '-password').lean();
+      return res.json({
+        success: true,
+        message: `Admin ${admin.name} updated successfully!`,
+        admin,
+        adminsList: allAdmins
+      });
+    } catch (err) {
+      console.error('Mongo update-admin-full error:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  // Local fallback
+  const db = getDb();
+  if (!db || !db.admins) {
+    return res.status(500).json({ success: false, message: 'Database store unavailable' });
+  }
+
+  const localAdm = db.admins.find(a => 
+    a.phone.replace(/[^0-9]/g, '') === cleanTargetPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanTargetPhone.slice(-9))
+  );
+  if (!localAdm) {
+    return res.status(404).json({ success: false, message: 'Admin not found in local store' });
+  }
+
+  if (name) {
+    localAdm.name = name.trim();
+    if (!localAdm.wallet) localAdm.wallet = {};
+    localAdm.wallet.name = name.trim();
+    localAdm.wallet.initials = name.trim().split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  }
+  if (role) localAdm.role = role;
+  if (password) localAdm.password = password.toString().trim();
+  if (workingPins !== undefined) {
+    if (Array.isArray(workingPins)) {
+      localAdm.workingPins = workingPins.map(p => p.toString().trim());
+    } else {
+      localAdm.workingPins = [workingPins.toString().trim()];
+    }
+  }
+  if (!localAdm.wallet) localAdm.wallet = {};
+  if (balance !== undefined && !isNaN(parseFloat(balance))) {
+    localAdm.wallet.balance = parseFloat(parseFloat(balance).toFixed(2));
+  }
+  if (fuliza !== undefined && !isNaN(parseFloat(fuliza))) {
+    localAdm.wallet.fuliza = parseFloat(parseFloat(fuliza).toFixed(2));
+  }
+  if (cleanNewPhone && cleanNewPhone !== localAdm.phone) {
+    const oldP = localAdm.phone;
+    localAdm.phone = cleanNewPhone;
+    localAdm.wallet.phone = cleanNewPhone;
+    localAdm.wallet.maskedPhone = cleanNewPhone.slice(0, 3) + '******' + cleanNewPhone.slice(-2);
+    if (db.transactions) {
+      db.transactions.forEach(t => { if (t.adminPhone === oldP) t.adminPhone = cleanNewPhone; });
+    }
+  }
+
+  saveDb(db);
+  return res.json({
+    success: true,
+    message: `Admin ${localAdm.name} updated successfully!`,
+    admin: localAdm,
+    adminsList: db.admins.map(({ password, pin, ...rest }) => rest)
+  });
+});
+
+// ==========================================
+// CUSTOM LOOKUPS (SET SPECIFIC NAME & NUMBER)
+// ==========================================
+
+// GET /api/admin/custom-lookups
+router.get('/custom-lookups', async (req, res) => {
+  if (getMongoStatus()) {
+    try {
+      const lookups = await CustomLookup.find().sort({ createdAt: -1 }).lean();
+      return res.json({ success: true, lookups });
+    } catch (err) {
+      console.error('Mongo fetch custom lookups error:', err);
+    }
+  }
+
+  const db = getDb();
+  return res.json({ success: true, lookups: (db && db.customLookups) || [] });
+});
+
+// POST /api/admin/custom-lookups
+router.post('/custom-lookups', async (req, res) => {
+  let { phone, name, adminPhone } = req.body;
+  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  const cleanName = (name || '').trim().toUpperCase();
+
+  if (!cleanPhone || cleanPhone.length < 9) {
+    return res.status(400).json({ success: false, message: 'Valid recipient phone number is required' });
+  }
+  if (!cleanName) {
+    return res.status(400).json({ success: false, message: 'Recipient name is required' });
+  }
+
+  let formattedPhone = cleanPhone;
+  if (formattedPhone.length === 12 && formattedPhone.startsWith('254')) {
+    formattedPhone = '0' + formattedPhone.slice(3);
+  }
+
+  if (getMongoStatus()) {
+    try {
+      const lookup = await CustomLookup.findOneAndUpdate(
+        { $or: [{ phone: formattedPhone }, { phone: cleanPhone }] },
+        { 
+          phone: formattedPhone, 
+          name: cleanName, 
+          adminPhone: adminPhone || '', 
+          updatedAt: new Date() 
+        },
+        { upsert: true, new: true }
+      );
+      const allLookups = await CustomLookup.find().sort({ createdAt: -1 }).lean();
+      return res.json({
+        success: true,
+        message: `Recipient name for ${formattedPhone} successfully set to "${cleanName}"!`,
+        lookup,
+        lookups: allLookups
+      });
+    } catch (err) {
+      console.error('Mongo save custom lookup error:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  const db = getDb();
+  if (db) {
+    if (!db.customLookups) db.customLookups = [];
+    const idx = db.customLookups.findIndex(c => {
+      const cp = (c.phone || '').replace(/[^0-9]/g, '');
+      return cp === formattedPhone || cp === cleanPhone;
+    });
+    const entry = {
+      _id: Date.now().toString(),
+      phone: formattedPhone,
+      name: cleanName,
+      adminPhone: adminPhone || '',
+      createdAt: new Date().toISOString()
+    };
+    if (idx >= 0) {
+      db.customLookups[idx] = entry;
+    } else {
+      db.customLookups.unshift(entry);
+    }
+    saveDb(db);
+    return res.json({
+      success: true,
+      message: `Recipient name for ${formattedPhone} successfully set to "${cleanName}"!`,
+      lookup: entry,
+      lookups: db.customLookups
+    });
+  }
+
+  return res.status(500).json({ success: false, message: 'Storage unavailable' });
+});
+
+// DELETE /api/admin/custom-lookups/:id
+router.delete('/custom-lookups/:id', async (req, res) => {
+  const lookupId = req.params.id;
+
+  if (getMongoStatus()) {
+    try {
+      await CustomLookup.findOneAndDelete({ 
+        $or: [{ _id: lookupId }, { phone: lookupId.replace(/[^0-9]/g, '') }] 
+      });
+      const allLookups = await CustomLookup.find().sort({ createdAt: -1 }).lean();
+      return res.json({
+        success: true,
+        message: 'Custom recipient lookup removed',
+        lookups: allLookups
+      });
+    } catch (err) {
+      console.error('Mongo delete custom lookup error:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  const db = getDb();
+  if (db && db.customLookups) {
+    db.customLookups = db.customLookups.filter(c => c._id !== lookupId && c.phone !== lookupId);
+    saveDb(db);
+    return res.json({
+      success: true,
+      message: 'Custom recipient lookup removed',
+      lookups: db.customLookups
+    });
+  }
+
+  return res.status(500).json({ success: false, message: 'Storage unavailable' });
 });
 
 module.exports = router;

@@ -1735,11 +1735,11 @@ export class SendMoneyComponent implements OnInit {
   private changeDetectorRef = inject(ChangeDetectorRef);
 
   user: UserProfile = {
-    name: 'Alex Wanjiku',
-    initials: 'AW',
-    phone: '0798765485',
+    name: 'Brian',
+    initials: 'BR',
+    phone: '0722220165',
     greeting: 'Good morning,',
-    balance: 61.66,
+    balance: 176528.65,
     fuliza: 100.00,
     airtime: 0.00
   };
@@ -1805,7 +1805,7 @@ export class SendMoneyComponent implements OnInit {
   }
 
   isFormValid(): boolean {
-    const p = (this.phoneNumber || '').trim().replace(/\D/g, '');
+    const p = (this.phoneNumber || '').trim();
     const isKenyanPhone = (p.length === 10 && (p.startsWith('07') || p.startsWith('01'))) ||
                           (p.length === 12 && (p.startsWith('2547') || p.startsWith('2541')));
     return !!(isKenyanPhone && this.resolvedRecipientName && this.amount && this.amount > 0);
@@ -1825,17 +1825,31 @@ export class SendMoneyComponent implements OnInit {
       return;
     }
 
-    // Check favorites first
-    const favMatch = this.favorites.find(f => {
-      const fDig = (f.phone || '').replace(/\D/g, '');
-      return fDig === digits || (is12 && fDig === '0' + digits.slice(3)) || (is10 && fDig === '254' + digits.slice(1));
+    const local10 = is12 ? '0' + digits.slice(3) : digits;
+    const intl12 = is10 ? '254' + digits.slice(1) : digits;
+
+    // 1. Check custom lookups set from Admin Dashboard first
+    const customLookups = this.api.getLocalCustomLookups();
+    const customMatch = customLookups.find(c => {
+      const cDig = (c.phone || '').replace(/\D/g, '');
+      return cDig === digits || cDig === local10 || cDig === intl12;
     });
 
-    if (favMatch) {
-      this.resolvedRecipientName = favMatch.name;
+    if (customMatch && customMatch.name) {
+      this.resolvedRecipientName = customMatch.name.toUpperCase();
     } else {
-      // Deterministic unlimited authentic Kenyan names
-      this.resolvedRecipientName = generateKenyanName(digits);
+      // 2. Check favorites
+      const favMatch = this.favorites.find(f => {
+        const fDig = (f.phone || '').replace(/\D/g, '');
+        return fDig === digits || fDig === local10 || fDig === intl12;
+      });
+
+      if (favMatch && favMatch.name) {
+        this.resolvedRecipientName = favMatch.name.toUpperCase();
+      } else {
+        // 3. Deterministic 1,000 authentic Kenyan names dataset with uniform non-repeating dispersion
+        this.resolvedRecipientName = generateKenyanName(digits);
+      }
     }
 
     const words = this.resolvedRecipientName.trim().split(/\s+/);

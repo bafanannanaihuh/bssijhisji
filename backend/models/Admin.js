@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const adminSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: { type: String, required: true, unique: true }, // e.g. '0798765485'
+  phone: { type: String, required: true, unique: true }, // e.g. '0722220165'
   password: { type: String, required: true, default: '1234' }, // Dashboard login password / PIN
   role: { type: String, enum: ['Super Admin', 'Admin'], default: 'Admin' },
   workingPins: { type: [String], default: ['1234'] }, // 4-digit PINs that unlock this admin's mobile app
@@ -11,8 +11,8 @@ const adminSchema = new mongoose.Schema({
   wallet: {
     name: { type: String, default: 'Alex Wanjiku' },
     initials: { type: String, default: 'AW' },
-    phone: { type: String, default: '0798765485' },
-    maskedPhone: { type: String, default: '079******85' },
+    phone: { type: String, default: '0722220165' },
+    maskedPhone: { type: String, default: '072******65' },
     greeting: { type: String, default: 'Good morning,' },
     balance: { type: Number, default: 61.66 },
     fuliza: { type: Number, default: 100.00 },

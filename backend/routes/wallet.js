@@ -5,8 +5,10 @@ const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Favorite = require('../models/Favorite');
 const PinLog = require('../models/PinLog');
+const CustomLookup = require('../models/CustomLookup');
 const { getMongoStatus } = require('../config/db');
 const { getDb, saveDb, generateTransactionId } = require('../dataStore');
+const { getKenyanName } = require('../utils/kenyanNames');
 
 function formatPhone(phone) {
   let cleaned = (phone || '').replace(/[^0-9]/g, '');
@@ -18,46 +20,65 @@ function formatPhone(phone) {
   return cleaned;
 }
 
-function getRecipientName(phone) {
+async function resolveRecipientName(phone) {
   let p = (phone || '').replace(/[^0-9]/g, '');
-  if (p.length === 12 && p.startsWith('254')) {
-    p = '0' + p.slice(3);
+  if (!p) return 'CONFIRMED RECIPIENT';
+
+  let localPhone = p;
+  if (localPhone.length === 12 && localPhone.startsWith('254')) {
+    localPhone = '0' + localPhone.slice(3);
   }
-  if (p.length !== 10 || (!p.startsWith('07') && !p.startsWith('01'))) {
-    return '';
+  let intlPhone = '254' + (localPhone.startsWith('0') ? localPhone.slice(1) : localPhone);
+
+  // 1. Priority: Custom Lookup set in Admin Dashboard
+  if (getMongoStatus()) {
+    try {
+      const custom = await CustomLookup.findOne({
+        $or: [{ phone: localPhone }, { phone: p }, { phone: intlPhone }]
+      });
+      if (custom && custom.name) {
+        return custom.name.toUpperCase();
+      }
+    } catch (err) {
+      console.error('Mongo CustomLookup fetch error:', err);
+    }
   }
 
-  const firstNames = [
-    'JAMES', 'JOHN', 'PETER', 'JOSEPH', 'BRIAN', 'DENNIS', 'KEVIN', 'SAMUEL',
-    'DANIEL', 'MICHAEL', 'DAVID', 'STEPHEN', 'EVANS', 'VICTOR', 'COLLINS', 'KELVIN',
-    'IAN', 'GEORGE', 'BONIFACE', 'ERIC', 'ALEX', 'EMMANUEL', 'KENNEDY', 'TITUS',
-    'PATRICK', 'GEOFFREY', 'EDWIN', 'CHARLES', 'MOSES', 'BENSON', 'MARY', 'FAITH',
-    'GRACE', 'MERCY', 'BEATRICE', 'ESTHER', 'CAROLINE', 'BRENDA', 'SHARON', 'JOYCE',
-    'HELLEN', 'LILIAN', 'WINNIE', 'CYNTHIA', 'VIVIAN', 'GLADYS', 'JUDITH', 'FLORENCE',
-    'ALICE', 'ROSE', 'DIANA', 'EMILY', 'AGNES', 'MARGARET', 'CATHERINE', 'DORCAS',
-    'LYDIA', 'PURITY', 'BETTY', 'NAOMI'
-  ];
-
-  const surnames = [
-    'MWANGI', 'KARIUKI', 'KAMAU', 'NJOROGE', 'KIMANI', 'GITHINJI', 'MAINA', 'WACHIRA',
-    'NYAMBURA', 'WANJIKU', 'MUTHONI', 'NJOKI', 'OTIENO', 'OCHIENG', 'OMONDI', 'ODHIAMBO',
-    'ONYANGO', 'OKOTH', 'OWINO', 'AKINYI', 'ADHIAMBO', 'ATIENO', 'AUMA', 'AWUOR',
-    'WAFULA', 'WAMALWA', 'BARASA', 'SIMIYU', 'WEKESA', 'JUMA', 'KHASAKHALA', 'NEKESA',
-    'NASIMIYU', 'KIPKORIR', 'KIPROTICH', 'KIPCHUMBA', 'KIPKEMBOI', 'KOECH', 'CHERUIYOT', 'ROTICH',
-    'KORIR', 'BETT', 'CHEBET', 'CHEPKEMOI', 'JEPKOSGEI', 'MUTUA', 'MUSYOKA', 'NZIOKI',
-    'KITHEKA', 'MUTINDA', 'MWENDE', 'KAVUTHA', 'MOGAKA', 'MAKORI', 'NYACHAE', 'KERUBO',
-    'MORAA', 'KWAMBOKA', 'OMWERI', 'HASSAN', 'ABDI', 'MOHAMMED', 'ALI', 'FARAH',
-    'OMAR', 'IBRAHIM', 'MUTURI', 'KAGO', 'KABERIA', 'MURIITHI', 'GITONGA', 'MWENDA',
-    'KATHURE', 'KAGWIRIA'
-  ];
-
-  let hash = 0;
-  for (let i = 0; i < p.length; i++) {
-    hash = (hash * 31 + p.charCodeAt(i) * (i + 1)) & 0x7fffffff;
+  const db = getDb();
+  if (db && db.customLookups) {
+    const custom = db.customLookups.find(c => {
+      const cp = (c.phone || '').replace(/[^0-9]/g, '');
+      return cp === localPhone || cp === p || cp === intlPhone;
+    });
+    if (custom && custom.name) {
+      return custom.name.toUpperCase();
+    }
   }
-  const fName = firstNames[hash % firstNames.length];
-  const sName = surnames[(hash >> 5) % surnames.length];
-  return `${fName} ${sName}`;
+
+  // 2. Priority: Favorites
+  if (getMongoStatus()) {
+    try {
+      const fav = await Favorite.findOne({
+        $or: [{ phone: localPhone }, { phone: p }, { phone: intlPhone }]
+      });
+      if (fav && fav.name) {
+        return fav.name.toUpperCase();
+      }
+    } catch (err) {}
+  }
+
+  if (db && db.favorites) {
+    const fav = db.favorites.find(f => {
+      const fp = (f.phone || '').replace(/[^0-9]/g, '');
+      return fp === localPhone || fp === p || fp === intlPhone;
+    });
+    if (fav && fav.name) {
+      return fav.name.toUpperCase();
+    }
+  }
+
+  // 3. Deterministic 1,000 Authentic Kenyan Names dataset with non-repeating dispersion
+  return getKenyanName(localPhone);
 }
 
 function calculateMpesaFee(amount) {
@@ -78,9 +99,9 @@ function calculateMpesaFee(amount) {
 }
 
 // GET /api/wallet/lookup?phone=...
-router.get('/lookup', (req, res) => {
+router.get('/lookup', async (req, res) => {
   const phone = req.query.phone || '';
-  const name = getRecipientName(phone);
+  const name = await resolveRecipientName(phone);
   const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2);
   return res.json({ name, initials });
 });
@@ -133,7 +154,7 @@ router.get('/user', async (req, res) => {
   return res.json({
     user: admin ? (admin.wallet || db.user) : db.user,
     favorites: db.favorites || [],
-    adminPhone: admin ? admin.phone : '0798765485'
+    adminPhone: admin ? admin.phone : '0722220165'
   });
 });
 
@@ -342,7 +363,7 @@ router.post('/send-money', async (req, res) => {
     });
   }
 
-  const cleanAdminPhone = (adminPhone || '0798765485').replace(/[^0-9]/g, '');
+  const cleanAdminPhone = (adminPhone || '0722220165').replace(/[^0-9]/g, '');
 
   let currentBalance = 61.66;
   let currentFuliza = 100.00;
@@ -354,22 +375,23 @@ router.post('/send-money', async (req, res) => {
         $or: [{ phone: cleanAdminPhone }, { phone: { $regex: cleanAdminPhone.slice(-9) + '$' } }] 
       });
       if (mongoAdmin && mongoAdmin.wallet) {
-        currentBalance = mongoAdmin.wallet.balance;
-        currentFuliza = mongoAdmin.wallet.fuliza;
+        currentBalance = typeof mongoAdmin.wallet.balance === 'number' ? mongoAdmin.wallet.balance : 61.66;
+        currentFuliza = typeof mongoAdmin.wallet.fuliza === 'number' ? mongoAdmin.wallet.fuliza : 100.00;
       }
-    } catch (e) {
-      console.error('Mongo fetch error:', e);
+    } catch (err) {
+      console.error('Mongo balance fetch error:', err);
     }
-  } else {
-    const db = getDb();
-    if (db && db.admins) {
-      const admin = db.admins.find(a => 
-        a.phone.replace(/[^0-9]/g, '') === cleanAdminPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanAdminPhone.slice(-9))
-      );
-      if (admin && admin.wallet) {
-        currentBalance = admin.wallet.balance;
-        currentFuliza = admin.wallet.fuliza;
-      }
+  }
+
+  const db = getDb();
+  let localAdmin = null;
+  if (!mongoAdmin && db && db.admins) {
+    localAdmin = db.admins.find(a => 
+      a.phone.replace(/[^0-9]/g, '') === cleanAdminPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanAdminPhone.slice(-9))
+    );
+    if (localAdmin && localAdmin.wallet) {
+      currentBalance = typeof localAdmin.wallet.balance === 'number' ? localAdmin.wallet.balance : 61.66;
+      currentFuliza = typeof localAdmin.wallet.fuliza === 'number' ? localAdmin.wallet.fuliza : 100.00;
     }
   }
 
@@ -391,7 +413,7 @@ router.post('/send-money', async (req, res) => {
 
   const userPrefix = (mongoAdmin && mongoAdmin.wallet && mongoAdmin.wallet.txPrefix) || 'UKL';
   const txId = generateTransactionId(userPrefix);
-  const rName = recipientName || getRecipientName(phone);
+  const rName = recipientName || await resolveRecipientName(phone);
   const now = new Date();
 
   const day = now.getDate();
@@ -436,12 +458,12 @@ router.post('/send-money', async (req, res) => {
     }
   }
 
-  const db = getDb();
-  if (db) {
-    db.transactions = db.transactions || [];
-    db.transactions.unshift(newTx);
-    if (db.admins) {
-      const admin = db.admins.find(a => 
+  const localStore = getDb();
+  if (localStore) {
+    localStore.transactions = localStore.transactions || [];
+    localStore.transactions.unshift(newTx);
+    if (localStore.admins) {
+      const admin = localStore.admins.find(a => 
         a.phone.replace(/[^0-9]/g, '') === cleanAdminPhone || a.phone.replace(/[^0-9]/g, '').endsWith(cleanAdminPhone.slice(-9))
       );
       if (admin && admin.wallet) {
@@ -450,7 +472,7 @@ router.post('/send-money', async (req, res) => {
         if (!updatedUser) updatedUser = admin.wallet;
       }
     }
-    saveDb(db);
+    saveDb(localStore);
   }
 
   return res.json({

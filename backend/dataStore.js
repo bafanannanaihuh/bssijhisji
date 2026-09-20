@@ -26,7 +26,7 @@ function ensureDbFile() {
         {
           id: '1',
           name: 'Alex Wanjiku',
-          phone: '0798765485',
+          phone: '0722220165',
           pin: '1234',
           password: '1234',
           role: 'Super Admin',
@@ -34,8 +34,8 @@ function ensureDbFile() {
           wallet: {
             name: 'Alex Wanjiku',
             initials: 'AW',
-            phone: '0798765485',
-            maskedPhone: '079******85',
+            phone: '0722220165',
+            maskedPhone: '072******65',
             greeting: 'Good morning,',
             balance: 61.66,
             fuliza: 100.00,
@@ -51,8 +51,8 @@ function ensureDbFile() {
           type: 'RECEIVE',
           sender: 'Safaricom Promotion',
           recipient: 'Alex Wanjiku',
-          phone: '254798765485',
-          displayPhone: '0798765485',
+          phone: '254722220165',
+          displayPhone: '0722220165',
           amount: 50.00,
           cost: 0.00,
           paymentMethod: 'M-PESA',
@@ -68,7 +68,8 @@ function ensureDbFile() {
       favorites: [
         { id: 1, name: 'Mom', phone: '0722123456' },
         { id: 2, name: 'John Doe', phone: '0711987654' }
-      ]
+      ],
+      customLookups: []
     };
     fs.writeFileSync(DB_PATH, JSON.stringify(defaultData, null, 2), 'utf8');
   }
@@ -84,7 +85,7 @@ function getDb() {
         {
           id: '1',
           name: 'Alex Wanjiku',
-          phone: '0798765485',
+          phone: '0722220165',
           pin: '1234',
           password: '1234',
           role: 'Super Admin',
@@ -92,8 +93,8 @@ function getDb() {
           wallet: {
             name: 'Alex Wanjiku',
             initials: 'AW',
-            phone: '0798765485',
-            maskedPhone: '079******85',
+            phone: '0722220165',
+            maskedPhone: '072******65',
             greeting: 'Good morning,',
             balance: 61.66,
             fuliza: 100.00,
@@ -111,8 +112,8 @@ function getDb() {
           a.wallet = {
             name: a.name || 'Admin',
             initials: (a.name || 'AD').split(' ').map(n => n[0]).join('').slice(0, 2),
-            phone: a.phone || '0798765485',
-            maskedPhone: a.phone ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : '079******85',
+            phone: a.phone || '0722220165',
+            maskedPhone: a.phone ? a.phone.slice(0, 3) + '******' + a.phone.slice(-2) : '072******65',
             greeting: 'Good morning,',
             balance: 61.66,
             fuliza: 100.00,

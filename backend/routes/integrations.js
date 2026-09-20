@@ -22,8 +22,11 @@ const DEFAULT_APPS = ['pakabet', 'vexbet', 'patatrader'];
 
 // Helper to look up an Admin by phone number
 async function findAdmin(phone) {
-  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  let cleanPhone = (phone || '').replace(/[^0-9]/g, '');
   if (!cleanPhone) return null;
+  if (cleanPhone === '0798765485' || cleanPhone === '254798765485') {
+    cleanPhone = '0722220165';
+  }
 
   if (getMongoStatus()) {
     try {
@@ -94,7 +97,7 @@ router.get('/connections', async (req, res) => {
     // Default ensure all 3 apps have a record
     const result = DEFAULT_APPS.map(appId => {
       const existing = connections.find(c => c.app === appId);
-      const defaultAdmin = allAdmins.find(a => a.role === 'Super Admin') || allAdmins[0] || { name: 'Alex Wanjiku', phone: '0798765485' };
+      const defaultAdmin = allAdmins.find(a => a.role === 'Super Admin') || allAdmins[0] || { name: 'Brian', phone: '0722220165' };
       return {
         app: appId,
         appName: APP_NAMES[appId] || appId.toUpperCase(),
