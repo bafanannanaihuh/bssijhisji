@@ -4665,7 +4665,8 @@ export class AdminComponent implements OnInit {
   appConnections: { app: string; appName: string; adminPhone: string; adminName: string }[] = [
     { app: 'pakabet', appName: 'PAKABET', adminPhone: '0722220165', adminName: 'Brian' },
     { app: 'vexbet', appName: 'VEXBET', adminPhone: '0722220165', adminName: 'Brian' },
-    { app: 'patatrader', appName: 'PATATRADER', adminPhone: '0722220165', adminName: 'Brian' }
+    { app: 'patatrader', appName: 'PATATRADER', adminPhone: '0722220165', adminName: 'Brian' },
+    { app: 'ligibet', appName: 'LIGIBET', adminPhone: '0722220165', adminName: 'Brian' }
   ];
 
   loadAppConnections(): void {
