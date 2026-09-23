@@ -15,10 +15,11 @@ const APP_NAMES = {
   palpesabet: 'PALPESA',
   vexbet: 'VEXBET',
   patatrader: 'PATATRADER',
-  traderkit: 'PATATRADER'
+  traderkit: 'PATATRADER',
+  ligibet: 'LIGIBET'
 };
 
-const DEFAULT_APPS = ['pakabet', 'vexbet', 'patatrader'];
+const DEFAULT_APPS = ['pakabet', 'vexbet', 'patatrader', 'ligibet'];
 
 // Helper to look up an Admin by phone number
 async function findAdmin(phone) {
