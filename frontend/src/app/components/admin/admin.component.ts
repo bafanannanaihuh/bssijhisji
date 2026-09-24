@@ -1415,6 +1415,66 @@ import { PwaService } from '../../services/pwa.service';
                   </div>
                 </div>
               </div>
+
+              <!-- App 4: LigiBet -->
+              <div class="app-card">
+                <div class="app-card-head">
+                  <div class="app-brand-badge ligi-badge">L</div>
+                  <div class="app-info">
+                    <h4 class="app-name">LigiBet</h4>
+                    <span class="app-domain">ligibet.site</span>
+                  </div>
+                  <span class="app-live-pill" [class.connected-mine]="isCurrentAdminConnected('ligibet')">
+                    {{ isCurrentAdminConnected('ligibet') ? '🟢 Bound to You' : 'Live' }}
+                  </span>
+                </div>
+                <div class="app-card-body">
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Sender Name:</span>
+                    <span class="app-val font-bold">LIGIBET</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Trigger:</span>
+                    <span class="app-val">Admin Withdrawal Only</span>
+                  </div>
+                  <div class="app-meta-row">
+                    <span class="app-lbl">Connected Receiver:</span>
+                    <span class="app-val font-bold" style="color: #00e676;">
+                      {{ getAppConnection('ligibet').adminName }} (<code>{{ getAppConnection('ligibet').adminPhone }}</code>)
+                    </span>
+                  </div>
+
+                  <!-- Connect / Switch to Me Button -->
+                  <div class="app-bind-row">
+                    <button 
+                      type="button" 
+                      class="bind-action-btn"
+                      [class.btn-already-connected]="isCurrentAdminConnected('ligibet')"
+                      (click)="connectMyAccount('ligibet')">
+                      {{ isCurrentAdminConnected('ligibet') ? '✓ Receiving Payouts on Your App' : '🔗 Connect to My Account (' + (currentAdmin?.name || 'Me') + ')' }}
+                    </button>
+                  </div>
+
+                  <!-- Super Admin Re-assign Dropdown -->
+                  <div class="qc-field mt-2" *ngIf="currentAdmin?.role === 'Super Admin' && adminsList.length > 1">
+                    <label class="section-micro-label">Assign Payout Receiver:</label>
+                    <select class="qc-select" [value]="getAppConnection('ligibet').adminPhone" (change)="onAssignAppAdmin('ligibet', $event)">
+                      <option *ngFor="let a of adminsList" [value]="a.phone">
+                        {{ a.name }} ({{ a.phone }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="app-quick-test">
+                    <label class="section-micro-label">Test Payout (Credits Bound Admin):</label>
+                    <div class="app-test-btns">
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('ligibet', 500)">+500</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('ligibet', 1000)">+1,000</button>
+                      <button type="button" class="test-chip-btn" (click)="testAppWithdrawal('ligibet', 5000)">+5,000</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Custom Test Simulator -->
@@ -1430,6 +1490,7 @@ import { PwaService } from '../../services/pwa.service';
                     <option value="pakabet">Pakabet (palpesa.site)</option>
                     <option value="vexbet">Vexbet (vexbet.site)</option>
                     <option value="patatrader">Trader Kit (patatrader.site)</option>
+                    <option value="ligibet">LigiBet (ligibet.site)</option>
                   </select>
                 </div>
                 <div class="qc-field">
@@ -3257,6 +3318,7 @@ import { PwaService } from '../../services/pwa.service';
     .paka-badge { background: #ff9800; color: #000; }
     .vex-badge { background: #e50914; color: #fff; }
     .trade-badge { background: #00bcd4; color: #000; }
+    .ligi-badge { background: #00c853; color: #000; }
     .app-info { flex: 1; }
     .app-name {
       margin: 0;
